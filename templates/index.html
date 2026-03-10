@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로또 번호 생성기</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+    }
+
+    .container {
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      color: #aaa;
+      margin-bottom: 50px;
+      font-size: 0.95rem;
+    }
+
+    .balls {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-bottom: 50px;
+      flex-wrap: wrap;
+    }
+
+    .ball {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .ball.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .ball.yellow { background: linear-gradient(135deg, #f7971e, #ffd200); color: #333; }
+    .ball.blue   { background: linear-gradient(135deg, #2980b9, #6dd5fa); }
+    .ball.red    { background: linear-gradient(135deg, #c0392b, #e74c3c); }
+    .ball.gray   { background: linear-gradient(135deg, #636e72, #b2bec3); }
+    .ball.green  { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+
+    button {
+      padding: 16px 48px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 50px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+      cursor: pointer;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(231, 76, 60, 0.6);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎰 로또 번호 생성기</h1>
+    <p class="subtitle">1~45 사이의 숫자 6개를 무작위로 생성합니다</p>
+
+    <div class="balls" id="balls">
+      <div class="ball gray">?</div>
+      <div class="ball gray">?</div>
+      <div class="ball gray">?</div>
+      <div class="ball gray">?</div>
+      <div class="ball gray">?</div>
+      <div class="ball gray">?</div>
+    </div>
+
+    <button onclick="generate()">번호 생성</button>
+  </div>
+
+  <script>
+    function getBallColor(num) {
+      if (num <= 10) return 'yellow';
+      if (num <= 20) return 'blue';
+      if (num <= 30) return 'red';
+      if (num <= 40) return 'gray';
+      return 'green';
+    }
+
+    async function generate() {
+      const ballEls = document.querySelectorAll('.ball');
+      ballEls.forEach(b => { b.classList.remove('show'); b.textContent = '?'; b.className = 'ball gray'; });
+
+      const res = await fetch('/generate');
+      const data = await res.json();
+
+      data.numbers.forEach((num, i) => {
+        setTimeout(() => {
+          const ball = ballEls[i];
+          ball.className = `ball ${getBallColor(num)}`;
+          ball.textContent = num;
+          ball.classList.add('show');
+        }, i * 150);
+      });
+    }
+  </script>
+</body>
+</html>
