@@ -51,37 +51,25 @@
       {% endif %}
     </div>
 
-    <!-- 구매 문의 채팅 -->
-    <div class="my-card">
-      <h3>💬 구매 문의 채팅 ({{ buy_rooms|length }})</h3>
-      {% if buy_rooms %}
+    <!-- 채팅 목록 -->
+    <div class="my-card" style="grid-column: span 2;">
+      <h3>💬 채팅 목록 ({{ (buy_rooms|length) + (sell_rooms|length) }})</h3>
+      {% set all_rooms = buy_rooms + sell_rooms %}
+      {% if all_rooms %}
         <div class="my-list">
-          {% for room in buy_rooms %}
+          {% for room in all_rooms %}
             <a href="{{ url_for('chat', room_id=room.id) }}" class="my-list-item">
               <span>{{ room.fish.title }}</span>
-              <span class="chat-meta">판매자: {{ room.seller.username }}</span>
+              <span class="chat-meta">
+                상대방:
+                {% if current_user.id == room.buyer_id %}{{ room.seller.username }}
+                {% else %}{{ room.buyer.username }}{% endif %}
+              </span>
             </a>
           {% endfor %}
         </div>
       {% else %}
-        <p class="empty-text">진행 중인 구매 문의가 없습니다.</p>
-      {% endif %}
-    </div>
-
-    <!-- 판매 채팅 -->
-    <div class="my-card">
-      <h3>📩 판매 문의 채팅 ({{ sell_rooms|length }})</h3>
-      {% if sell_rooms %}
-        <div class="my-list">
-          {% for room in sell_rooms %}
-            <a href="{{ url_for('chat', room_id=room.id) }}" class="my-list-item">
-              <span>{{ room.fish.title }}</span>
-              <span class="chat-meta">구매자: {{ room.buyer.username }}</span>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="empty-text">들어온 구매 문의가 없습니다.</p>
+        <p class="empty-text">진행 중인 채팅이 없습니다.</p>
       {% endif %}
     </div>
   </div>

@@ -18,11 +18,7 @@
         </div>
       </a>
       <span class="chat-partner">
-        {% if current_user.id == room.buyer_id %}
-          판매자: {{ room.seller.username }}
-        {% else %}
-          구매자: {{ room.buyer.username }}
-        {% endif %}
+        💬 {% if current_user.id == room.buyer_id %}{{ room.seller.username }}{% else %}{{ room.buyer.username }}{% endif %}
       </span>
     </div>
 
