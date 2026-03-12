@@ -1,1 +1,1 @@
-web: gunicorn lotto:app
+web: gunicorn app:app

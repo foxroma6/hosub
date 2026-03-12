@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ fish.title }} - 피시마켓{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="detail-grid">
+    <!-- 이미지 -->
+    <div class="detail-image">
+      {% if fish.image_url %}
+        <img src="{{ url_for('static', filename=fish.image_url) }}" alt="{{ fish.title }}">
+      {% else %}
+        <div class="no-image-lg">🐟</div>
+      {% endif %}
+    </div>
+
+    <!-- 상세 정보 -->
+    <div class="detail-info">
+      <div class="detail-header">
+        <span class="status-badge status-{{ fish.status }}">{{ fish.status }}</span>
+        <span class="fish-species-tag">{{ fish.species }}</span>
+      </div>
+
+      <h1 class="detail-title">{{ fish.title }}</h1>
+      <div class="detail-price">{{ "{:,}".format(fish.price) }}원</div>
+
+      <div class="detail-meta">
+        {% if fish.weight %}<div>⚖️ {{ fish.weight }}</div>{% endif %}
+        {% if fish.location %}<div>📍 {{ fish.location }}</div>{% endif %}
+        <div>🕒 {{ fish.created_at.strftime('%Y년 %m월 %d일') }}</div>
+        <div>👤 {{ fish.seller.username }}</div>
+      </div>
+
+      {% if fish.description %}
+        <div class="detail-desc">
+          <h3>상품 설명</h3>
+          <p>{{ fish.description }}</p>
+        </div>
+      {% endif %}
+
+      <!-- 계좌 정보 -->
+      {% if fish.seller.bank_account %}
+        <div class="bank-info">
+          <h3>💳 계좌 정보 (계좌이체)</h3>
+          <p>{{ fish.seller.bank_name }} {{ fish.seller.bank_account }}</p>
+          <p class="bank-note">입금 후 채팅으로 확인 요청해 주세요.</p>
+        </div>
+      {% endif %}
+
+      <!-- 버튼 영역 -->
+      <div class="detail-actions">
+        {% if current_user.is_authenticated %}
+          {% if fish.seller_id == current_user.id %}
+            <!-- 판매자 메뉴 -->
+            <div class="status-controls">
+              <span>상태 변경: </span>
+              {% for s in ['판매중', '예약중', '판매완료'] %}
+                <button class="btn btn-sm {% if fish.status == s %}btn-primary{% else %}btn-outline{% endif %}"
+                        onclick="updateStatus('{{ s }}')">{{ s }}</button>
+              {% endfor %}
+            </div>
+            <form action="{{ url_for('fish_delete', fish_id=fish.id) }}" method="post"
+                  onsubmit="return confirm('정말 삭제하시겠습니까?')">
+              <button type="submit" class="btn btn-danger">삭제</button>
+            </form>
+          {% else %}
+            <!-- 구매자 메뉴 -->
+            {% if chat_room %}
+              <a href="{{ url_for('chat', room_id=chat_room.id) }}" class="btn btn-primary">💬 채팅 이어하기</a>
+            {% else %}
+              <a href="{{ url_for('start_chat', fish_id=fish.id) }}" class="btn btn-primary">💬 채팅 문의하기</a>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-primary">로그인 후 문의하기</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function updateStatus(status) {
+  const res = await fetch('/fish/{{ fish.id }}/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  if (res.ok) location.reload();
+}
+</script>
+{% endblock %}

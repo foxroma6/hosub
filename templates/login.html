@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}로그인 - 피시마켓{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <h2>로그인</h2>
+
+    <div class="social-buttons">
+      <a href="{{ url_for('naver_login') }}" class="btn-social btn-naver">
+        <span class="social-icon">N</span> 네이버로 로그인
+      </a>
+      <a href="{{ url_for('kakao_login') }}" class="btn-social btn-kakao">
+        <span class="social-icon">K</span> 카카오로 로그인
+      </a>
+    </div>
+
+    <div class="divider"><span>또는 이메일로 로그인</span></div>
+
+    <form method="post">
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" name="email" placeholder="이메일 입력" required>
+      </div>
+      <div class="form-group">
+        <label>비밀번호</label>
+        <input type="password" name="password" placeholder="비밀번호 입력" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">로그인</button>
+    </form>
+
+    <p class="auth-footer">
+      아직 계정이 없으신가요? <a href="{{ url_for('register') }}">회원가입</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

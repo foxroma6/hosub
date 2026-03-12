@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}마이페이지 - 피시마켓{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="my-header">
+    <div class="my-avatar">{{ current_user.username[0] }}</div>
+    <div>
+      <h2>{{ current_user.username }}</h2>
+      <p>{{ current_user.email }}</p>
+    </div>
+  </div>
+
+  <div class="my-grid">
+    <!-- 계좌 정보 -->
+    <div class="my-card">
+      <h3>💳 계좌 정보 (계좌이체용)</h3>
+      <form method="post" action="{{ url_for('update_bank') }}">
+        <div class="form-group">
+          <label>은행명</label>
+          <input type="text" name="bank_name" value="{{ current_user.bank_name or '' }}"
+                 placeholder="예) 국민은행, 신한은행">
+        </div>
+        <div class="form-group">
+          <label>계좌번호</label>
+          <input type="text" name="bank_account" value="{{ current_user.bank_account or '' }}"
+                 placeholder="예) 110-123-456789">
+        </div>
+        <button type="submit" class="btn btn-primary">저장</button>
+      </form>
+    </div>
+
+    <!-- 판매 목록 -->
+    <div class="my-card">
+      <h3>🐟 내 판매 목록 ({{ my_listings|length }})</h3>
+      {% if my_listings %}
+        <div class="my-list">
+          {% for fish in my_listings %}
+            <a href="{{ url_for('fish_detail', fish_id=fish.id) }}" class="my-list-item">
+              <div class="my-fish-info">
+                <span class="status-badge status-{{ fish.status }}">{{ fish.status }}</span>
+                <span>{{ fish.title }}</span>
+              </div>
+              <span class="my-fish-price">{{ "{:,}".format(fish.price) }}원</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-text">판매 중인 상품이 없습니다.</p>
+        <a href="{{ url_for('fish_new') }}" class="btn btn-primary">판매 등록하기</a>
+      {% endif %}
+    </div>
+
+    <!-- 구매 문의 채팅 -->
+    <div class="my-card">
+      <h3>💬 구매 문의 채팅 ({{ buy_rooms|length }})</h3>
+      {% if buy_rooms %}
+        <div class="my-list">
+          {% for room in buy_rooms %}
+            <a href="{{ url_for('chat', room_id=room.id) }}" class="my-list-item">
+              <span>{{ room.fish.title }}</span>
+              <span class="chat-meta">판매자: {{ room.seller.username }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-text">진행 중인 구매 문의가 없습니다.</p>
+      {% endif %}
+    </div>
+
+    <!-- 판매 채팅 -->
+    <div class="my-card">
+      <h3>📩 판매 문의 채팅 ({{ sell_rooms|length }})</h3>
+      {% if sell_rooms %}
+        <div class="my-list">
+          {% for room in sell_rooms %}
+            <a href="{{ url_for('chat', room_id=room.id) }}" class="my-list-item">
+              <span>{{ room.fish.title }}</span>
+              <span class="chat-meta">구매자: {{ room.buyer.username }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-text">들어온 구매 문의가 없습니다.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

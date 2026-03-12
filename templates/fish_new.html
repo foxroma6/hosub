@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}판매 등록 - 피시마켓{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="form-card">
+    <h2>🐟 판매 등록</h2>
+
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>제목 *</label>
+        <input type="text" name="title" placeholder="예) 제주산 신선한 갈치 1kg" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>물고기 종류 *</label>
+          <input type="text" name="species" placeholder="예) 갈치, 고등어, 참돔..." required
+                 list="species-list">
+          <datalist id="species-list">
+            <option value="갈치">
+            <option value="고등어">
+            <option value="참돔">
+            <option value="방어">
+            <option value="광어">
+            <option value="우럭">
+            <option value="연어">
+            <option value="참치">
+            <option value="조기">
+            <option value="전어">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>무게</label>
+          <input type="text" name="weight" placeholder="예) 1kg, 500g">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>가격 (원) *</label>
+          <input type="number" name="price" placeholder="0" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>거래 지역</label>
+          <input type="text" name="location" placeholder="예) 제주도, 부산 서면">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>상품 설명</label>
+        <textarea name="description" rows="5"
+          placeholder="어획 방법, 신선도, 특징 등을 자세히 적어주세요."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>사진 업로드</label>
+        <div class="file-upload">
+          <input type="file" name="image" accept="image/*" id="imageInput"
+                 onchange="previewImage(this)">
+          <label for="imageInput" class="file-label">📷 사진 선택</label>
+        </div>
+        <img id="preview" style="display:none; max-width:200px; border-radius:8px; margin-top:10px;">
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-outline">취소</a>
+        <button type="submit" class="btn btn-primary">등록하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function previewImage(input) {
+  const preview = document.getElementById('preview');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

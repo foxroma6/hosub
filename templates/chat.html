@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}채팅 - 피시마켓{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="chat-wrapper">
+    <!-- 채팅 헤더 -->
+    <div class="chat-header">
+      <a href="{{ url_for('fish_detail', fish_id=room.fish.id) }}" class="chat-fish-info">
+        {% if room.fish.image_url %}
+          <img src="{{ url_for('static', filename=room.fish.image_url) }}" alt="">
+        {% else %}
+          <div class="chat-fish-icon">🐟</div>
+        {% endif %}
+        <div>
+          <div class="chat-fish-title">{{ room.fish.title }}</div>
+          <div class="chat-fish-price">{{ "{:,}".format(room.fish.price) }}원</div>
+        </div>
+      </a>
+      <span class="chat-partner">
+        {% if current_user.id == room.buyer_id %}
+          판매자: {{ room.seller.username }}
+        {% else %}
+          구매자: {{ room.buyer.username }}
+        {% endif %}
+      </span>
+    </div>
+
+    <!-- 메시지 목록 -->
+    <div class="chat-messages" id="messages">
+      {% for msg in room.messages %}
+        <div class="message {% if msg.sender_id == current_user.id %}message-mine{% else %}message-other{% endif %}">
+          {% if msg.sender_id != current_user.id %}
+            <div class="msg-sender">{{ msg.sender.username }}</div>
+          {% endif %}
+          <div class="msg-bubble">{{ msg.content }}</div>
+          <div class="msg-time">{{ msg.created_at.strftime('%H:%M') }}</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- 입력창 -->
+    <div class="chat-input-area">
+      <input type="text" id="msgInput" placeholder="메시지를 입력하세요..."
+             onkeydown="if(event.key==='Enter') sendMsg()">
+      <button onclick="sendMsg()" class="btn btn-primary">전송</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const roomId = {{ room.id }};
+let lastId = {{ room.messages[-1].id if room.messages else 0 }};
+
+const messages = document.getElementById('messages');
+messages.scrollTop = messages.scrollHeight;
+
+async function sendMsg() {
+  const input = document.getElementById('msgInput');
+  const content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+
+  const res = await fetch(`/chat/${roomId}/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+  const msg = await res.json();
+  appendMessage(msg);
+  lastId = msg.id;
+}
+
+function appendMessage(msg) {
+  const div = document.createElement('div');
+  div.className = `message ${msg.is_mine ? 'message-mine' : 'message-other'}`;
+  div.innerHTML = `
+    ${!msg.is_mine ? `<div class="msg-sender">${msg.sender}</div>` : ''}
+    <div class="msg-bubble">${msg.content}</div>
+    <div class="msg-time">${msg.created_at}</div>
+  `;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// 폴링으로 새 메시지 가져오기
+setInterval(async () => {
+  const res = await fetch(`/chat/${roomId}/messages?last_id=${lastId}`);
+  const newMsgs = await res.json();
+  newMsgs.forEach(msg => {
+    if (!msg.is_mine) {
+      appendMessage(msg);
+      lastId = msg.id;
+    }
+  });
+}, 3000);
+</script>
+{% endblock %}
