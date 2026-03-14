@@ -48,7 +48,7 @@ class Fish(db.Model):
     status = db.Column(db.String(20), default='판매중')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    chat_rooms = db.relationship('ChatRoom', backref='fish', lazy=True)
+    chat_rooms = db.relationship('ChatRoom', backref='fish', lazy=True, cascade='all, delete-orphan')
 
 
 class ChatRoom(db.Model):
@@ -60,7 +60,7 @@ class ChatRoom(db.Model):
 
     buyer = db.relationship('User', foreign_keys=[buyer_id])
     seller = db.relationship('User', foreign_keys=[seller_id])
-    messages = db.relationship('Message', backref='room', lazy=True, order_by='Message.created_at')
+    messages = db.relationship('Message', backref='room', lazy=True, order_by='Message.created_at', cascade='all, delete-orphan')
 
 
 class Message(db.Model):
