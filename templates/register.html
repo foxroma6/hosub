@@ -1,21 +1,10 @@
 {% extends "base.html" %}
-{% block title %}회원가입 - 피시마켓{% endblock %}
+{% block title %}회원가입 - AquaPet{% endblock %}
 
 {% block content %}
 <div class="auth-container">
   <div class="auth-card">
     <h2>회원가입</h2>
-
-    <div class="social-buttons">
-      <a href="{{ url_for('naver_login') }}" class="btn-social btn-naver">
-        <span class="social-icon">N</span> 네이버로 시작하기
-      </a>
-      <a href="{{ url_for('kakao_login') }}" class="btn-social btn-kakao">
-        <span class="social-icon">K</span> 카카오로 시작하기
-      </a>
-    </div>
-
-    <div class="divider"><span>또는 이메일로 가입</span></div>
 
     <form method="post">
       <div class="form-group">
@@ -30,7 +19,7 @@
         <label>비밀번호</label>
         <input type="password" name="password" placeholder="비밀번호 입력 (6자 이상)" required minlength="6">
       </div>
-      <button type="submit" class="btn btn-primary btn-full">가입하기</button>
+      <button type="submit" class="btn btn-primary btn-full">인증 메일 받기</button>
     </form>
 
     <p class="auth-footer">

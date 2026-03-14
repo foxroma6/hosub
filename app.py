@@ -1,8 +1,10 @@
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message as MailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from sqlalchemy import text
 from datetime import datetime
 import cloudinary
@@ -33,10 +35,59 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
+# Flask-Mail 설정
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
+
 db = SQLAlchemy(app)
+mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = '로그인이 필요합니다.'
+
+
+# ── Token helpers ─────────────────────────────────────────
+
+def generate_verification_token(email):
+    s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return s.dumps(email, salt='email-verify')
+
+def verify_token(token, expiration=3600):
+    s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = s.loads(token, salt='email-verify', max_age=expiration)
+    except (SignatureExpired, BadSignature):
+        return None
+    return email
+
+def send_verification_email(user):
+    token = generate_verification_token(user.email)
+    verify_url = url_for('verify_email', token=token, _external=True)
+    msg = MailMessage(
+        subject='[AquaPet] 이메일 인증을 완료해주세요',
+        recipients=[user.email],
+        html=f'''
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+          <h2 style="color: #2E75BF;">AquaPet 이메일 인증</h2>
+          <p>안녕하세요, <strong>{user.username}</strong>님!</p>
+          <p>아래 버튼을 클릭하면 이메일 인증이 완료되고 계정이 활성화됩니다.</p>
+          <p style="margin: 28px 0;">
+            <a href="{verify_url}"
+               style="background:#4A90D9; color:white; padding:14px 28px;
+                      border-radius:8px; text-decoration:none; font-weight:600;">
+              이메일 인증하기
+            </a>
+          </p>
+          <p style="color:#888; font-size:13px;">이 링크는 1시간 후 만료됩니다.</p>
+          <p style="color:#888; font-size:13px;">본인이 요청하지 않은 경우 이 메일을 무시하세요.</p>
+        </div>
+        '''
+    )
+    mail.send(msg)
 
 
 # ── Models ──────────────────────────────────────────────
@@ -49,6 +100,7 @@ class User(UserMixin, db.Model):
     bank_name = db.Column(db.String(50))
     bank_account = db.Column(db.String(50))
     is_admin = db.Column(db.Boolean, default=False)
+    is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     fish_listings = db.relationship('Fish', backref='seller', lazy=True)
@@ -134,6 +186,9 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password_hash, password):
+            if not user.is_verified:
+                flash('이메일 인증이 필요합니다. 받은편지함을 확인해주세요.', 'error')
+                return render_template('login.html', unverified_email=email)
             login_user(user)
             return redirect(request.args.get('next') or url_for('index'))
         flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'error')
@@ -154,14 +209,69 @@ def register():
             flash('이미 사용 중인 닉네임입니다.', 'error')
             return render_template('register.html')
 
-        user = User(username=username, email=email,
-                    password_hash=generate_password_hash(password))
+        user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            is_verified=False,
+        )
         db.session.add(user)
         db.session.commit()
-        login_user(user)
-        flash('환영합니다! 가입이 완료되었습니다.', 'success')
-        return redirect(url_for('index'))
+
+        try:
+            send_verification_email(user)
+        except Exception as e:
+            app.logger.error(f'Email send failed: {e}')
+            flash('인증 이메일 발송에 실패했습니다. 잠시 후 재시도해주세요.', 'error')
+            db.session.delete(user)
+            db.session.commit()
+            return render_template('register.html')
+
+        return redirect(url_for('verify_pending', email=email))
     return render_template('register.html')
+
+
+@app.route('/verify/pending')
+def verify_pending():
+    email = request.args.get('email', '')
+    return render_template('verify_pending.html', email=email)
+
+
+@app.route('/verify/<token>')
+def verify_email(token):
+    email = verify_token(token)
+    if email is None:
+        flash('인증 링크가 만료되었거나 유효하지 않습니다.', 'error')
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('사용자를 찾을 수 없습니다.', 'error')
+        return redirect(url_for('login'))
+
+    if user.is_verified:
+        flash('이미 인증된 계정입니다.', 'info')
+        return redirect(url_for('login'))
+
+    user.is_verified = True
+    db.session.commit()
+    flash('이메일 인증이 완료되었습니다! 로그인해주세요.', 'success')
+    return redirect(url_for('login'))
+
+
+@app.route('/verify/resend', methods=['POST'])
+def resend_verification():
+    email = request.form.get('email', '')
+    user = User.query.filter_by(email=email).first()
+    if user and not user.is_verified:
+        try:
+            send_verification_email(user)
+            flash('인증 이메일을 다시 발송했습니다. 받은편지함을 확인해주세요.', 'success')
+        except Exception:
+            flash('이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error')
+    else:
+        flash('해당 이메일을 찾을 수 없거나 이미 인증된 계정입니다.', 'error')
+    return redirect(url_for('verify_pending', email=email))
 
 
 @app.route('/logout')
@@ -360,8 +470,6 @@ def admin_delete_user(user_id):
     return redirect(url_for('admin'))
 
 
-
-
 def seed_sample_data():
     if Fish.query.first():
         return
@@ -374,6 +482,7 @@ def seed_sample_data():
             password_hash=generate_password_hash('demo1234'),
             bank_name='국민은행',
             bank_account='123-456-789012',
+            is_verified=True,
         )
         db.session.add(demo_user)
         db.session.flush()
@@ -441,6 +550,21 @@ def run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+        try:
+            conn.execute(text(
+                'ALTER TABLE "user" ADD COLUMN is_verified BOOLEAN DEFAULT FALSE'
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        # 기존 사용자(이미 가입된)는 인증된 것으로 처리
+        try:
+            conn.execute(text(
+                'UPDATE "user" SET is_verified = TRUE WHERE is_verified IS NULL OR is_verified = FALSE AND created_at < NOW() - INTERVAL \'1 day\''
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def seed_admin_user():
@@ -451,12 +575,20 @@ def seed_admin_user():
             email='joms0907@naver.com',
             password_hash=generate_password_hash('Khakis0403!@#$'),
             is_admin=True,
+            is_verified=True,
         )
         db.session.add(admin)
         db.session.commit()
-    elif not admin.is_admin:
-        admin.is_admin = True
-        db.session.commit()
+    else:
+        changed = False
+        if not admin.is_admin:
+            admin.is_admin = True
+            changed = True
+        if not admin.is_verified:
+            admin.is_verified = True
+            changed = True
+        if changed:
+            db.session.commit()
 
 
 with app.app_context():
