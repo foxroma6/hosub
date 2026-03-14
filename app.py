@@ -360,17 +360,6 @@ def admin_delete_user(user_id):
     return redirect(url_for('admin'))
 
 
-# Social login placeholders
-@app.route('/auth/naver')
-def naver_login():
-    flash('네이버 로그인은 준비 중입니다.', 'info')
-    return redirect(url_for('login'))
-
-
-@app.route('/auth/kakao')
-def kakao_login():
-    flash('카카오 로그인은 준비 중입니다.', 'info')
-    return redirect(url_for('login'))
 
 
 def seed_sample_data():
