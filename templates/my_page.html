@@ -14,7 +14,7 @@
   <div class="my-grid">
     <!-- 계좌 정보 -->
     <div class="my-card">
-      <h3>💳 계좌 정보 (계좌이체용)</h3>
+      <h3>계좌 정보 (계좌이체용)</h3>
       <form method="post" action="{{ url_for('update_bank') }}">
         <div class="form-group">
           <label>은행명</label>
@@ -32,7 +32,7 @@
 
     <!-- 판매 목록 -->
     <div class="my-card">
-      <h3>🐟 내 판매 목록 ({{ my_listings|length }})</h3>
+      <h3>내 등록 목록 ({{ my_listings|length }})</h3>
       {% if my_listings %}
         <div class="my-list">
           {% for fish in my_listings %}
@@ -53,7 +53,7 @@
 
     <!-- 채팅 목록 -->
     <div class="my-card" style="grid-column: span 2;">
-      <h3>💬 채팅 목록 ({{ (buy_rooms|length) + (sell_rooms|length) }})</h3>
+      <h3>채팅 목록 ({{ (buy_rooms|length) + (sell_rooms|length) }})</h3>
       {% set all_rooms = buy_rooms + sell_rooms %}
       {% if all_rooms %}
         <div class="my-list">

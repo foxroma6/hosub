@@ -28,12 +28,12 @@
       <h1 class="detail-title">{{ fish.title }}</h1>
       <div class="detail-price">{{ "{:,}".format(fish.price) }}원</div>
 
-      <div class="detail-meta">
-        {% if fish.weight %}<div>⚖️ {{ fish.weight }}</div>{% endif %}
-        {% if fish.location %}<div>📍 {{ fish.location }}</div>{% endif %}
-        <div>🕒 {{ fish.created_at.strftime('%Y년 %m월 %d일') }}</div>
-        <div>👤 {{ fish.seller.username }}</div>
-      </div>
+      <ul class="detail-meta">
+        {% if fish.weight %}<li>크기 / 수량 : {{ fish.weight }}</li>{% endif %}
+        {% if fish.location %}<li>거래 지역 : {{ fish.location }}</li>{% endif %}
+        <li>등록일 : {{ fish.created_at.strftime('%Y년 %m월 %d일') }}</li>
+        <li>판매자 : {{ fish.seller.username }}</li>
+      </ul>
 
       {% if fish.description %}
         <div class="detail-desc">
