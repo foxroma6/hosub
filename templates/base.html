@@ -11,7 +11,18 @@
 
 <nav class="navbar">
   <div class="nav-inner">
-    <a href="{{ url_for('index') }}" class="nav-logo">🐠 AquaPet</a>
+    <a href="{{ url_for('index') }}" class="nav-logo">
+      <svg class="logo-icon" viewBox="0 0 38 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 7 C5 11, 5 15, 3 19 L9 15 L9 11 Z" fill="#4A90D9" opacity="0.75"/>
+        <ellipse cx="22" cy="13" rx="14" ry="8" fill="#4A90D9"/>
+        <ellipse cx="21" cy="14.5" rx="9" ry="4" fill="#7DB4E8" opacity="0.45"/>
+        <path d="M16 5.5 C19 2, 24 2, 27 5.5 L23 7 L19 7 Z" fill="#2E75BF"/>
+        <circle cx="32" cy="11" r="2.2" fill="white"/>
+        <circle cx="32.6" cy="10.6" r="1.1" fill="#1E3A54"/>
+        <circle cx="33" cy="10.2" r="0.35" fill="white"/>
+      </svg>
+      <span class="logo-text">Aqua<span class="logo-accent">Pet</span></span>
+    </a>
     <div class="nav-links">
       {% if current_user.is_authenticated %}
         <a href="{{ url_for('fish_new') }}" class="btn btn-primary">+ 분양 등록</a>
