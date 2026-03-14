@@ -1,24 +1,37 @@
 {% extends "base.html" %}
-{% block title %}피시마켓 - 신선한 물고기 거래{% endblock %}
+{% block title %}관상어마켓 - 관상어 전문 거래{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <h1>신선한 물고기를 거래하세요 🐠</h1>
-  <p>전국 어부와 수산 판매자를 직접 만나보세요</p>
+  <h1>관상어를 거래하세요 🐠</h1>
+  <p>관상어, 수초, 파충류까지 — 전문 분양자를 직접 만나보세요</p>
   <form class="search-bar" method="get" action="{{ url_for('index') }}">
-    <input type="text" name="search" value="{{ search }}" placeholder="물고기 이름으로 검색...">
+    <input type="text" name="search" value="{{ search }}" placeholder="관상어 이름으로 검색...">
     <button type="submit">검색</button>
   </form>
 </section>
 
 <div class="container">
+  <!-- 대분류 필터 -->
   <div class="filter-bar">
-    <a href="{{ url_for('index') }}" class="filter-tag {% if not selected_species %}active{% endif %}">전체</a>
-    {% for species in species_list %}
-      <a href="{{ url_for('index', species=species) }}"
-         class="filter-tag {% if selected_species == species %}active{% endif %}">{{ species }}</a>
+    <a href="{{ url_for('index') }}" class="filter-tag {% if not selected_category %}active{% endif %}">전체</a>
+    {% for cat in categories %}
+      <a href="{{ url_for('index', category=cat) }}"
+         class="filter-tag {% if selected_category == cat %}active{% endif %}">{{ cat }}</a>
     {% endfor %}
   </div>
+
+  <!-- 소분류 필터 (대분류 선택 시 표시) -->
+  {% if selected_category and categories[selected_category] %}
+  <div class="filter-bar filter-sub">
+    <a href="{{ url_for('index', category=selected_category) }}"
+       class="filter-tag {% if not selected_species %}active{% endif %}">전체</a>
+    {% for sub in categories[selected_category] %}
+      <a href="{{ url_for('index', category=selected_category, species=sub) }}"
+         class="filter-tag {% if selected_species == sub %}active{% endif %}">{{ sub }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% if fish_list %}
     <div class="fish-grid">
@@ -51,9 +64,9 @@
   {% else %}
     <div class="empty-state">
       <div class="empty-icon">🎣</div>
-      <p>등록된 물고기가 없습니다.</p>
+      <p>등록된 관상어가 없습니다.</p>
       {% if current_user.is_authenticated %}
-        <a href="{{ url_for('fish_new') }}" class="btn btn-primary">첫 판매 등록하기</a>
+        <a href="{{ url_for('fish_new') }}" class="btn btn-primary">첫 분양 등록하기</a>
       {% endif %}
     </div>
   {% endif %}

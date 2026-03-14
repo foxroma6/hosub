@@ -1,38 +1,32 @@
 {% extends "base.html" %}
-{% block title %}판매 등록 - 피시마켓{% endblock %}
+{% block title %}분양 등록 - 관상어마켓{% endblock %}
 
 {% block content %}
 <div class="container">
   <div class="form-card">
-    <h2>🐟 판매 등록</h2>
+    <h2>🐠 분양 등록</h2>
 
     <form method="post" enctype="multipart/form-data">
       <div class="form-group">
         <label>제목 *</label>
-        <input type="text" name="title" placeholder="예) 제주산 신선한 갈치 1kg" required>
+        <input type="text" name="title" placeholder="예) 풀레드 구피 쌍 분양합니다" required>
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label>물고기 종류 *</label>
-          <input type="text" name="species" placeholder="예) 갈치, 고등어, 참돔..." required
-                 list="species-list">
-          <datalist id="species-list">
-            <option value="갈치">
-            <option value="고등어">
-            <option value="참돔">
-            <option value="방어">
-            <option value="광어">
-            <option value="우럭">
-            <option value="연어">
-            <option value="참치">
-            <option value="조기">
-            <option value="전어">
-          </datalist>
+          <label>대분류 *</label>
+          <select name="category" id="categorySelect" required onchange="updateSubcategory()">
+            <option value="">카테고리 선택</option>
+            {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-group">
-          <label>무게</label>
-          <input type="text" name="weight" placeholder="예) 1kg, 500g">
+          <label>소분류 *</label>
+          <select name="species" id="speciesSelect" required>
+            <option value="">대분류를 먼저 선택하세요</option>
+          </select>
         </div>
       </div>
 
@@ -42,15 +36,20 @@
           <input type="number" name="price" placeholder="0" min="0" required>
         </div>
         <div class="form-group">
-          <label>거래 지역</label>
-          <input type="text" name="location" placeholder="예) 제주도, 부산 서면">
+          <label>크기 / 수량</label>
+          <input type="text" name="weight" placeholder="예) 5cm, 10마리, 성체">
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>거래 지역</label>
+        <input type="text" name="location" placeholder="예) 서울 강남, 온라인 택배">
       </div>
 
       <div class="form-group">
         <label>상품 설명</label>
         <textarea name="description" rows="5"
-          placeholder="어획 방법, 신선도, 특징 등을 자세히 적어주세요."></textarea>
+          placeholder="건강 상태, 사육 환경, 특징 등을 자세히 적어주세요."></textarea>
       </div>
 
       <div class="form-group">
@@ -72,6 +71,30 @@
 </div>
 
 <script>
+const categories = {{ categories | tojson }};
+
+function updateSubcategory() {
+  const cat = document.getElementById('categorySelect').value;
+  const speciesSelect = document.getElementById('speciesSelect');
+  speciesSelect.innerHTML = '';
+
+  const subs = categories[cat] || [];
+  if (subs.length > 0) {
+    subs.forEach(sub => {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      speciesSelect.appendChild(opt);
+    });
+  } else {
+    // 소분류 없는 카테고리는 대분류 이름 그대로 사용
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    speciesSelect.appendChild(opt);
+  }
+}
+
 function previewImage(input) {
   const preview = document.getElementById('preview');
   if (input.files && input.files[0]) {

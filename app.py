@@ -7,6 +7,15 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
+
+CATEGORIES = {
+    '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
+    '해수어 & 산호': [],
+    '수생 무척추동물': ['새우', '가재'],
+    '파충류': ['거북이', '개구리'],
+    '수초 & 식물': [],
+}
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fish-market-secret-2024')
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///fish_market.db')
 if database_url.startswith('postgres://'):
@@ -39,6 +48,7 @@ class Fish(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(100), nullable=False, server_default='담수어')
     species = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
@@ -82,10 +92,13 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
+    category_filter = request.args.get('category', '')
     species_filter = request.args.get('species', '')
     search = request.args.get('search', '')
 
     query = Fish.query.filter_by(status='판매중')
+    if category_filter:
+        query = query.filter(Fish.category == category_filter)
     if species_filter:
         query = query.filter(Fish.species == species_filter)
     if search:
@@ -94,10 +107,10 @@ def index():
         )
 
     fish_list = query.order_by(Fish.created_at.desc()).all()
-    species_list = [s[0] for s in db.session.query(Fish.species).distinct().all()]
 
-    return render_template('index.html', fish_list=fish_list, species_list=species_list,
-                           selected_species=species_filter, search=search)
+    return render_template('index.html', fish_list=fish_list, categories=CATEGORIES,
+                           selected_category=category_filter, selected_species=species_filter,
+                           search=search)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -162,6 +175,7 @@ def fish_new():
         fish = Fish(
             seller_id=current_user.id,
             title=request.form.get('title'),
+            category=request.form.get('category'),
             species=request.form.get('species'),
             price=int(request.form.get('price', 0)),
             description=request.form.get('description'),
@@ -173,7 +187,7 @@ def fish_new():
         db.session.commit()
         flash('판매 등록이 완료되었습니다!', 'success')
         return redirect(url_for('fish_detail', fish_id=fish.id))
-    return render_template('fish_new.html')
+    return render_template('fish_new.html', categories=CATEGORIES)
 
 
 @app.route('/fish/<int:fish_id>')
@@ -335,24 +349,30 @@ def seed_sample_data():
         db.session.flush()
 
     samples = [
-        dict(title='싱싱한 제주 광어 2kg', species='광어', price=45000, weight='2kg', location='제주도',
-             description='제주 청정 바다에서 당일 잡은 싱싱한 광어입니다. 회로 드시기 최적입니다.',
-             image_url='https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80'),
-        dict(title='국내산 참돔 1.5kg', species='참돔', price=38000, weight='1.5kg', location='통영',
-             description='통영 앞바다에서 잡은 참돔입니다. 선물용으로도 좋습니다.',
-             image_url='https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=80'),
-        dict(title='고등어 한 상자 (10마리)', species='고등어', price=25000, weight='3kg', location='부산',
-             description='부산 자갈치시장 직송 고등어입니다. 구이, 조림 모두 맛있어요.',
-             image_url='https://images.unsplash.com/photo-1580476262798-bddd9f4b7369?w=600&q=80'),
-        dict(title='자연산 우럭 1kg', species='우럭', price=30000, weight='1kg', location='인천',
-             description='서해안 자연산 우럭입니다. 탕으로 끓이면 정말 시원합니다.',
+        dict(category='담수어', species='구피', title='고품질 구피 번식 쌍 분양합니다', price=15000,
+             weight='5cm', location='서울 강남',
+             description='건강하게 키운 풀레드 구피 쌍 분양입니다. 먹이 잘 먹고 활발해요.',
+             image_url='https://images.unsplash.com/photo-1520302519878-dac5cbc76c78?w=600&q=80'),
+        dict(category='담수어', species='베타', title='하프문 베타 수컷 분양', price=25000,
+             weight='6cm', location='경기 수원',
+             description='지느러미가 아름다운 하프문 베타입니다. 단독 사육 권장.',
+             image_url='https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?w=600&q=80'),
+        dict(category='담수어', species='디스커스', title='독일산 레드 디스커스 5인치', price=120000,
+             weight='5인치', location='부산',
+             description='독일 수입 레드 터콰이즈 디스커스입니다. 상태 최상.',
+             image_url='https://images.unsplash.com/photo-1535591273668-578e31182c4f?w=600&q=80'),
+        dict(category='해수어 & 산호', species='해수어 & 산호', title='니모 흰동가리 한 쌍', price=45000,
+             weight='4cm', location='인천',
+             description='건강한 흰동가리 한 쌍입니다. 말미잘과 합사 가능.',
              image_url='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80'),
-        dict(title='노르웨이 생연어 필렛 500g', species='연어', price=22000, weight='500g', location='서울',
-             description='신선하게 들어온 노르웨이산 생연어 필렛입니다. 회, 샐러드에 어울려요.',
-             image_url='https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&q=80'),
-        dict(title='갈치 특대 3마리', species='갈치', price=18000, weight='1.2kg', location='목포',
-             description='목포 은갈치 특대 사이즈 3마리입니다. 구이용으로 손질해서 드립니다.',
+        dict(category='수생 무척추동물', species='새우', title='체리 새우 10마리 분양', price=12000,
+             weight='2cm', location='대전',
+             description='선명한 레드 체리 새우 10마리입니다. 수초항에 최적.',
              image_url='https://images.unsplash.com/photo-1559494007-9f5847c49d94?w=600&q=80'),
+        dict(category='수초 & 식물', species='수초 & 식물', title='미크로소리움 대형 포기 분양', price=8000,
+             weight=None, location='온라인 택배',
+             description='수조에서 키운 건강한 미크로소리움 포기입니다. 저광에서도 잘 자라요.',
+             image_url='https://images.unsplash.com/photo-1520301255226-bf5f144451c1?w=600&q=80'),
     ]
 
     for s in samples:

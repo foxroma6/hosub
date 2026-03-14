@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}피시마켓 🐟{% endblock %}</title>
+  <title>{% block title %}관상어마켓 🐠{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -11,10 +11,10 @@
 
 <nav class="navbar">
   <div class="nav-inner">
-    <a href="{{ url_for('index') }}" class="nav-logo">🐟 피시마켓</a>
+    <a href="{{ url_for('index') }}" class="nav-logo">🐠 관상어마켓</a>
     <div class="nav-links">
       {% if current_user.is_authenticated %}
-        <a href="{{ url_for('fish_new') }}" class="btn btn-primary">+ 판매 등록</a>
+        <a href="{{ url_for('fish_new') }}" class="btn btn-primary">+ 분양 등록</a>
         <a href="{{ url_for('my_page') }}" class="nav-link">마이페이지</a>
         <a href="{{ url_for('logout') }}" class="nav-link">로그아웃</a>
       {% else %}
@@ -40,7 +40,7 @@
 </main>
 
 <footer class="footer">
-  <p>© 2024 피시마켓 · 신선한 물고기 거래 플랫폼</p>
+  <p>© 2025 관상어마켓 · 관상어 전문 거래 플랫폼</p>
 </footer>
 
 </body>

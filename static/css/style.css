@@ -175,8 +175,16 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
+.filter-sub {
+  margin-bottom: 24px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.filter-sub .filter-tag { font-size: 0.82rem; }
 
 .filter-tag {
   padding: 6px 16px;
