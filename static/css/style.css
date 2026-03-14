@@ -128,11 +128,8 @@ a { text-decoration: none; color: inherit; }
   background: linear-gradient(135deg, #A8CDD9 0%, #C8E2EC 100%);
   color: #2C3E50;
   text-align: center;
-  padding: 60px 24px;
+  padding: 28px 24px;
 }
-
-.hero h1 { font-size: 2rem; margin-bottom: 8px; font-weight: 700; }
-.hero p { opacity: 0.8; margin-bottom: 28px; font-size: 1.05rem; }
 
 .search-bar {
   display: flex;

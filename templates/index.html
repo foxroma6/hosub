@@ -3,8 +3,6 @@
 
 {% block content %}
 <section class="hero">
-  <h1>관상어를 거래하세요 🐠</h1>
-  <p>관상어, 수초, 파충류까지 — 전문 분양자를 직접 만나보세요</p>
   <form class="search-bar" method="get" action="{{ url_for('index') }}">
     <input type="text" name="search" value="{{ search }}" placeholder="관상어 이름으로 검색...">
     <button type="submit">검색</button>
