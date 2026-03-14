@@ -47,9 +47,18 @@
           <input type="text" name="quantity" placeholder="예) 1마리, 10마리, 한 쌍">
         </div>
         <div class="form-group">
-          <label>거래 지역</label>
-          <input type="text" name="location" placeholder="예) 서울 강남, 온라인 택배">
+          <label>판매 방법 *</label>
+          <select name="trade_type" required>
+            <option value="직거래">직거래</option>
+            <option value="택배">택배</option>
+            <option value="직거래 · 택배">직거래 · 택배 모두 가능</option>
+          </select>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>거래 지역</label>
+        <input type="text" name="location" placeholder="예) 서울 강남구, 부산 해운대구">
       </div>
 
       <div class="form-group">

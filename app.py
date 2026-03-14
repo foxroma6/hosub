@@ -65,6 +65,7 @@ class Fish(db.Model):
     image_url = db.Column(db.String(300))
     weight = db.Column(db.String(50))
     quantity = db.Column(db.String(50))
+    trade_type = db.Column(db.String(20), default='직거래')
     location = db.Column(db.String(100))
     status = db.Column(db.String(20), default='판매중')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -190,6 +191,7 @@ def fish_new():
             description=request.form.get('description'),
             weight=request.form.get('weight'),
             quantity=request.form.get('quantity'),
+            trade_type=request.form.get('trade_type', '직거래'),
             location=request.form.get('location'),
             image_url=image_url,
         )
@@ -439,6 +441,13 @@ def run_migrations():
         try:
             conn.execute(text(
                 "ALTER TABLE fish ADD COLUMN quantity VARCHAR(50)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ADD COLUMN trade_type VARCHAR(20) DEFAULT '직거래'"
             ))
             conn.commit()
         except Exception:
