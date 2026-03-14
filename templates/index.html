@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}관상어마켓 - 관상어 전문 거래{% endblock %}
+{% block title %}AquaPet - 관상어 전문 거래{% endblock %}
 
 {% block content %}
 <section class="hero">
   <form class="search-bar" method="get" action="{{ url_for('index') }}">
-    <input type="text" name="search" value="{{ search }}" placeholder="관상어 이름으로 검색...">
+    <input type="text" name="search" value="{{ search }}" placeholder="검색어를 입력해주세요">
     <button type="submit">검색</button>
   </form>
 </section>
