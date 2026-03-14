@@ -5,7 +5,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 from datetime import datetime
+import cloudinary
+import cloudinary.uploader
 import os
+
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+)
 
 app = Flask(__name__)
 
@@ -168,10 +176,8 @@ def fish_new():
         if 'image' in request.files:
             file = request.files['image']
             if file.filename:
-                filename = secure_filename(file.filename)
-                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                image_url = f'uploads/{filename}'
+                result = cloudinary.uploader.upload(file, folder='aqua-market')
+                image_url = result['secure_url']
 
         fish = Fish(
             seller_id=current_user.id,
