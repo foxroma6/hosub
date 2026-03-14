@@ -426,14 +426,14 @@ def run_migrations():
             ))
             conn.commit()
         except Exception:
-            pass
+            conn.rollback()
         try:
             conn.execute(text(
-                "ALTER TABLE \"user\" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"
+                'ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE'
             ))
             conn.commit()
         except Exception:
-            pass
+            conn.rollback()
 
 
 def seed_admin_user():
