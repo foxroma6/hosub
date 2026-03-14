@@ -64,6 +64,7 @@ class Fish(db.Model):
     description = db.Column(db.Text)
     image_url = db.Column(db.String(300))
     weight = db.Column(db.String(50))
+    quantity = db.Column(db.String(50))
     location = db.Column(db.String(100))
     status = db.Column(db.String(20), default='판매중')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -188,6 +189,7 @@ def fish_new():
             price=int(request.form.get('price', 0)),
             description=request.form.get('description'),
             weight=request.form.get('weight'),
+            quantity=request.form.get('quantity'),
             location=request.form.get('location'),
             image_url=image_url,
         )
@@ -430,6 +432,13 @@ def run_migrations():
         try:
             conn.execute(text(
                 'ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE'
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ADD COLUMN quantity VARCHAR(50)"
             ))
             conn.commit()
         except Exception:

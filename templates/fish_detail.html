@@ -29,7 +29,8 @@
       <div class="detail-price">{{ "{:,}".format(fish.price) }}원</div>
 
       <ul class="detail-meta">
-        {% if fish.weight %}<li>크기 / 수량 : {{ fish.weight }}</li>{% endif %}
+        {% if fish.weight %}<li>크기 : {{ fish.weight }}</li>{% endif %}
+        {% if fish.quantity %}<li>수량 : {{ fish.quantity }}</li>{% endif %}
         {% if fish.location %}<li>거래 지역 : {{ fish.location }}</li>{% endif %}
         <li>등록일 : {{ fish.created_at.strftime('%Y년 %m월 %d일') }}</li>
         <li>판매자 : {{ fish.seller.username }}</li>
