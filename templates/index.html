@@ -26,7 +26,11 @@
         <a href="{{ url_for('fish_detail', fish_id=fish.id) }}" class="fish-card">
           <div class="fish-card-img">
             {% if fish.image_url %}
-              <img src="{{ url_for('static', filename=fish.image_url) }}" alt="{{ fish.title }}">
+              {% if fish.image_url.startswith('http') %}
+                <img src="{{ fish.image_url }}" alt="{{ fish.title }}">
+              {% else %}
+                <img src="{{ url_for('static', filename=fish.image_url) }}" alt="{{ fish.title }}">
+              {% endif %}
             {% else %}
               <div class="no-image">🐟</div>
             {% endif %}

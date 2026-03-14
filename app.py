@@ -318,8 +318,52 @@ def kakao_login():
     return redirect(url_for('login'))
 
 
+def seed_sample_data():
+    if Fish.query.first():
+        return
+
+    demo_user = User.query.filter_by(email='demo@fishmarket.kr').first()
+    if not demo_user:
+        demo_user = User(
+            username='피시마켓관리자',
+            email='demo@fishmarket.kr',
+            password_hash=generate_password_hash('demo1234'),
+            bank_name='국민은행',
+            bank_account='123-456-789012',
+        )
+        db.session.add(demo_user)
+        db.session.flush()
+
+    samples = [
+        dict(title='싱싱한 제주 광어 2kg', species='광어', price=45000, weight='2kg', location='제주도',
+             description='제주 청정 바다에서 당일 잡은 싱싱한 광어입니다. 회로 드시기 최적입니다.',
+             image_url='https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80'),
+        dict(title='국내산 참돔 1.5kg', species='참돔', price=38000, weight='1.5kg', location='통영',
+             description='통영 앞바다에서 잡은 참돔입니다. 선물용으로도 좋습니다.',
+             image_url='https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=600&q=80'),
+        dict(title='고등어 한 상자 (10마리)', species='고등어', price=25000, weight='3kg', location='부산',
+             description='부산 자갈치시장 직송 고등어입니다. 구이, 조림 모두 맛있어요.',
+             image_url='https://images.unsplash.com/photo-1580476262798-bddd9f4b7369?w=600&q=80'),
+        dict(title='자연산 우럭 1kg', species='우럭', price=30000, weight='1kg', location='인천',
+             description='서해안 자연산 우럭입니다. 탕으로 끓이면 정말 시원합니다.',
+             image_url='https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80'),
+        dict(title='노르웨이 생연어 필렛 500g', species='연어', price=22000, weight='500g', location='서울',
+             description='신선하게 들어온 노르웨이산 생연어 필렛입니다. 회, 샐러드에 어울려요.',
+             image_url='https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&q=80'),
+        dict(title='갈치 특대 3마리', species='갈치', price=18000, weight='1.2kg', location='목포',
+             description='목포 은갈치 특대 사이즈 3마리입니다. 구이용으로 손질해서 드립니다.',
+             image_url='https://images.unsplash.com/photo-1559494007-9f5847c49d94?w=600&q=80'),
+    ]
+
+    for s in samples:
+        db.session.add(Fish(seller_id=demo_user.id, status='판매중', **s))
+
+    db.session.commit()
+
+
 with app.app_context():
     db.create_all()
+    seed_sample_data()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
