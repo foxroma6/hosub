@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}관리자 대시보드 - AquaPet{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 style="margin-bottom: 1.5rem;">관리자 대시보드</h2>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+    <div class="form-card" style="text-align:center; padding: 1.5rem;">
+      <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ all_fish|length }}</div>
+      <div style="color: var(--text-light);">전체 게시물</div>
+    </div>
+    <div class="form-card" style="text-align:center; padding: 1.5rem;">
+      <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ all_users|length }}</div>
+      <div style="color: var(--text-light);">전체 회원</div>
+    </div>
+    <div class="form-card" style="text-align:center; padding: 1.5rem;">
+      <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">
+        {{ all_fish | selectattr('status', 'equalto', '판매중') | list | length }}
+      </div>
+      <div style="color: var(--text-light);">판매중</div>
+    </div>
+  </div>
+
+  <!-- 게시물 관리 -->
+  <div class="form-card" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">게시물 관리</h3>
+    <table style="width:100%; border-collapse: collapse; font-size: 0.9rem;">
+      <thead>
+        <tr style="background: var(--bg); text-align: left;">
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">ID</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">제목</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">카테고리</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">가격</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">등록자</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">상태</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">등록일</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fish in all_fish %}
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 0.6rem 0.8rem;">{{ fish.id }}</td>
+          <td style="padding: 0.6rem 0.8rem;">
+            <a href="{{ url_for('fish_detail', fish_id=fish.id) }}" style="color: var(--primary);">{{ fish.title }}</a>
+          </td>
+          <td style="padding: 0.6rem 0.8rem;">{{ fish.category }} / {{ fish.species }}</td>
+          <td style="padding: 0.6rem 0.8rem;">{{ "{:,}".format(fish.price) }}원</td>
+          <td style="padding: 0.6rem 0.8rem;">{{ fish.seller.username }}</td>
+          <td style="padding: 0.6rem 0.8rem;">
+            <span class="status-badge status-{{ fish.status }}">{{ fish.status }}</span>
+          </td>
+          <td style="padding: 0.6rem 0.8rem;">{{ fish.created_at.strftime('%Y/%m/%d') }}</td>
+          <td style="padding: 0.6rem 0.8rem;">
+            <form method="post" action="{{ url_for('fish_delete', fish_id=fish.id) }}"
+                  onsubmit="return confirm('이 게시물을 삭제하시겠습니까?')">
+              <button type="submit" class="btn btn-outline"
+                      style="font-size:0.8rem; padding: 0.2rem 0.6rem; color:#e74c3c; border-color:#e74c3c;">
+                삭제
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 회원 관리 -->
+  <div class="form-card">
+    <h3 style="margin-bottom: 1rem;">회원 관리</h3>
+    <table style="width:100%; border-collapse: collapse; font-size: 0.9rem;">
+      <thead>
+        <tr style="background: var(--bg); text-align: left;">
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">ID</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">닉네임</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">이메일</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">게시물</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);">가입일</th>
+          <th style="padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in all_users %}
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 0.6rem 0.8rem;">{{ user.id }}</td>
+          <td style="padding: 0.6rem 0.8rem;">
+            {{ user.username }}
+            {% if user.is_admin %}<span style="font-size:0.75rem; color: var(--primary); font-weight:600;"> [관리자]</span>{% endif %}
+          </td>
+          <td style="padding: 0.6rem 0.8rem;">{{ user.email }}</td>
+          <td style="padding: 0.6rem 0.8rem;">{{ user.fish_listings|length }}</td>
+          <td style="padding: 0.6rem 0.8rem;">{{ user.created_at.strftime('%Y/%m/%d') }}</td>
+          <td style="padding: 0.6rem 0.8rem;">
+            {% if not user.is_admin %}
+            <form method="post" action="{{ url_for('admin_delete_user', user_id=user.id) }}"
+                  onsubmit="return confirm('이 회원을 삭제하시겠습니까?')">
+              <button type="submit" class="btn btn-outline"
+                      style="font-size:0.8rem; padding: 0.2rem 0.6rem; color:#e74c3c; border-color:#e74c3c;">
+                삭제
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

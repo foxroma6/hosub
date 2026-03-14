@@ -48,6 +48,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200))
     bank_name = db.Column(db.String(50))
     bank_account = db.Column(db.String(50))
+    is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     fish_listings = db.relationship('Fish', backref='seller', lazy=True)
@@ -212,12 +213,14 @@ def fish_detail(fish_id):
 @login_required
 def fish_delete(fish_id):
     fish = Fish.query.get_or_404(fish_id)
-    if fish.seller_id != current_user.id:
+    if fish.seller_id != current_user.id and not current_user.is_admin:
         flash('권한이 없습니다.', 'error')
         return redirect(url_for('fish_detail', fish_id=fish_id))
     db.session.delete(fish)
     db.session.commit()
     flash('게시글이 삭제되었습니다.', 'success')
+    if current_user.is_admin:
+        return redirect(url_for('admin'))
     return redirect(url_for('my_page'))
 
 
@@ -326,6 +329,33 @@ def update_bank():
     return redirect(url_for('my_page'))
 
 
+@app.route('/admin')
+@login_required
+def admin():
+    if not current_user.is_admin:
+        flash('접근 권한이 없습니다.', 'error')
+        return redirect(url_for('index'))
+    all_fish = Fish.query.order_by(Fish.created_at.desc()).all()
+    all_users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin.html', all_fish=all_fish, all_users=all_users)
+
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_user(user_id):
+    if not current_user.is_admin:
+        flash('접근 권한이 없습니다.', 'error')
+        return redirect(url_for('index'))
+    user = User.query.get_or_404(user_id)
+    if user.is_admin:
+        flash('관리자 계정은 삭제할 수 없습니다.', 'error')
+        return redirect(url_for('admin'))
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'사용자 {user.username}이(가) 삭제되었습니다.', 'success')
+    return redirect(url_for('admin'))
+
+
 # Social login placeholders
 @app.route('/auth/naver')
 def naver_login():
@@ -390,20 +420,43 @@ def seed_sample_data():
 
 def run_migrations():
     with db.engine.connect() as conn:
-        # category 컬럼이 없으면 추가
         try:
             conn.execute(text(
                 "ALTER TABLE fish ADD COLUMN category VARCHAR(100) NOT NULL DEFAULT '담수어'"
             ))
             conn.commit()
         except Exception:
-            pass  # 이미 존재하면 무시
+            pass
+        try:
+            conn.execute(text(
+                "ALTER TABLE \"user\" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"
+            ))
+            conn.commit()
+        except Exception:
+            pass
+
+
+def seed_admin_user():
+    admin = User.query.filter_by(email='joms0907@naver.com').first()
+    if not admin:
+        admin = User(
+            username='관리자',
+            email='joms0907@naver.com',
+            password_hash=generate_password_hash('Khakis0403!@#$'),
+            is_admin=True,
+        )
+        db.session.add(admin)
+        db.session.commit()
+    elif not admin.is_admin:
+        admin.is_admin = True
+        db.session.commit()
 
 
 with app.app_context():
     db.create_all()
     run_migrations()
     seed_sample_data()
+    seed_admin_user()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
