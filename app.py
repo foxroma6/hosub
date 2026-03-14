@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from sqlalchemy import text
 from datetime import datetime
 import os
 
@@ -381,8 +382,21 @@ def seed_sample_data():
     db.session.commit()
 
 
+def run_migrations():
+    with db.engine.connect() as conn:
+        # category 컬럼이 없으면 추가
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ADD COLUMN category VARCHAR(100) NOT NULL DEFAULT '담수어'"
+            ))
+            conn.commit()
+        except Exception:
+            pass  # 이미 존재하면 무시
+
+
 with app.app_context():
     db.create_all()
+    run_migrations()
     seed_sample_data()
 
 if __name__ == '__main__':
