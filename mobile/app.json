@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "AquaPet",
+    "slug": "aquapet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": { "resizeMode": "contain", "backgroundColor": "#EDF4FB" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.aquapet.app" },
+    "android": { "adaptiveIcon": { "backgroundColor": "#EDF4FB" }, "package": "com.aquapet.app" }
+  }
+}
