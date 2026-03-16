@@ -52,7 +52,7 @@
 
       <!-- 상품 정보 섹션 -->
       <div class="info-section">
-        <div class="info-section-title">상품 정보</div>
+        <div class="info-section-title section-product">상품 정보</div>
         <div class="info-row">
           <span class="info-label">가격</span>
           <span class="info-value price-value">{{ "{:,}".format(fish.price) }}원</span>
@@ -73,7 +73,7 @@
 
       <!-- 판매 정보 섹션 -->
       <div class="info-section">
-        <div class="info-section-title">판매 정보</div>
+        <div class="info-section-title section-seller">판매 정보</div>
         <div class="info-row">
           <span class="info-label">판매자</span>
           <span class="info-value">{{ fish.seller.username }}</span>
@@ -98,7 +98,7 @@
 
       {% if fish.description %}
         <div class="detail-desc">
-          <div class="info-section-title">상품 설명</div>
+          <div class="info-section-title section-desc">상품 설명</div>
           <p>{{ fish.description }}</p>
         </div>
       {% endif %}

@@ -668,12 +668,27 @@ a { text-decoration: none; color: inherit; }
 .info-section-title {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 10px 16px;
-  background: var(--bg);
   border-bottom: 1px solid var(--border);
+}
+
+.section-product {
+  background: #4A90D9;
+  color: #ffffff;
+  border-bottom-color: #3a7bc8;
+}
+
+.section-seller {
+  background: #3AADA8;
+  color: #ffffff;
+  border-bottom-color: #2e9490;
+}
+
+.section-desc {
+  background: #8B79D0;
+  color: #ffffff;
+  border-bottom-color: #7565c0;
 }
 
 .info-row {
