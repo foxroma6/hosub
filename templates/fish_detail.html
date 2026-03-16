@@ -4,14 +4,37 @@
 {% block content %}
 <div class="container">
   <div class="detail-grid">
-    <!-- 이미지 -->
+    <!-- 이미지 캐러셀 -->
     <div class="detail-image">
-      {% if fish.image_url %}
-        {% if fish.image_url.startswith('http') %}
-          <img src="{{ fish.image_url }}" alt="{{ fish.title }}">
-        {% else %}
-          <img src="{{ url_for('static', filename=fish.image_url) }}" alt="{{ fish.title }}">
-        {% endif %}
+      {% set imgs = fish.images | list %}
+      {% if imgs %}
+        <div class="carousel" id="carousel">
+          <div class="carousel-inner" id="carouselInner">
+            {% for img in imgs %}
+              <div class="carousel-slide">
+                <img src="{{ img.image_url }}" alt="{{ fish.title }}">
+              </div>
+            {% endfor %}
+          </div>
+          {% if imgs | length > 1 %}
+            <button class="carousel-btn prev" onclick="changeSlide(-1)">&#8249;</button>
+            <button class="carousel-btn next" onclick="changeSlide(1)">&#8250;</button>
+            <div class="carousel-dots">
+              {% for img in imgs %}
+                <span class="dot {% if loop.first %}active{% endif %}"
+                      data-idx="{{ loop.index0 }}" onclick="goToSlide(+this.dataset.idx)"></span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% elif fish.image_url %}
+        <div class="carousel" id="carousel">
+          <div class="carousel-inner">
+            <div class="carousel-slide">
+              <img src="{{ fish.image_url }}" alt="{{ fish.title }}">
+            </div>
+          </div>
+        </div>
       {% else %}
         <div class="no-image-lg">🐟</div>
       {% endif %}
@@ -78,6 +101,22 @@
 </div>
 
 <script>
+// ── 캐러셀 ──
+let currentSlide = 0;
+const inner = document.getElementById('carouselInner');
+const dots  = document.querySelectorAll('.dot');
+
+function goToSlide(n) {
+  if (!inner) return;
+  const total = inner.children.length;
+  currentSlide = (n + total) % total;
+  inner.style.transform = `translateX(-${currentSlide * 100}%)`;
+  dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+}
+
+function changeSlide(dir) { goToSlide(currentSlide + dir); }
+
+// ── 상태 변경 ──
 async function updateStatus(status) {
   const res = await fetch('/fish/{{ fish.id }}/status', {
     method: 'POST',

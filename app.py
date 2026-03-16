@@ -123,6 +123,15 @@ class Fish(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     chat_rooms = db.relationship('ChatRoom', backref='fish', lazy=True, cascade='all, delete-orphan')
+    images = db.relationship('FishImage', backref='fish_ref', lazy=True,
+                             order_by='FishImage.order', cascade='all, delete-orphan')
+
+
+class FishImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.id'), nullable=False)
+    image_url = db.Column(db.String(300), nullable=False)
+    order = db.Column(db.Integer, default=0)
 
 
 class ChatRoom(db.Model):
@@ -285,13 +294,6 @@ def logout():
 @login_required
 def fish_new():
     if request.method == 'POST':
-        image_url = None
-        if 'image' in request.files:
-            file = request.files['image']
-            if file.filename:
-                result = cloudinary.uploader.upload(file, folder='aqua-market')
-                image_url = result['secure_url']
-
         fish = Fish(
             seller_id=current_user.id,
             title=request.form.get('title'),
@@ -303,9 +305,19 @@ def fish_new():
             quantity=request.form.get('quantity'),
             trade_type=request.form.get('trade_type', '직거래'),
             location=request.form.get('location'),
-            image_url=image_url,
         )
         db.session.add(fish)
+        db.session.flush()  # fish.id 확보
+
+        files = request.files.getlist('images')
+        for i, file in enumerate(files):
+            if file.filename:
+                result = cloudinary.uploader.upload(file, folder='aqua-market')
+                url = result['secure_url']
+                if i == 0:
+                    fish.image_url = url  # 카드 썸네일용
+                db.session.add(FishImage(fish_id=fish.id, image_url=url, order=i))
+
         db.session.commit()
         flash('판매 등록이 완료되었습니다!', 'success')
         return redirect(url_for('fish_detail', fish_id=fish.id))
@@ -567,6 +579,22 @@ def run_migrations():
             conn.rollback()
 
 
+def seed_fish_images():
+    if FishImage.query.first():
+        return
+    # 구피 게시물에 여러 장 샘플 추가
+    guppy = Fish.query.filter_by(species='구피').first()
+    if guppy:
+        sample_urls = [
+            'https://images.unsplash.com/photo-1520302519878-dac5cbc76c78?w=600&q=80',
+            'https://images.unsplash.com/photo-1571752726703-5e7d1f6a986d?w=600&q=80',
+            'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=600&q=80',
+        ]
+        for i, url in enumerate(sample_urls):
+            db.session.add(FishImage(fish_id=guppy.id, image_url=url, order=i))
+        db.session.commit()
+
+
 def seed_admin_user():
     admin = User.query.filter_by(email='joms0907@naver.com').first()
     if not admin:
@@ -595,6 +623,7 @@ with app.app_context():
     db.create_all()
     run_migrations()
     seed_sample_data()
+    seed_fish_images()
     seed_admin_user()
 
 if __name__ == '__main__':
