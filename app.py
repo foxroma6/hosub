@@ -2,6 +2,8 @@ from flask import Flask, render_template, redirect, url_for, request, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message as MailMessage
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
@@ -43,8 +45,12 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
 
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+
 db = SQLAlchemy(app)
 mail = Mail(app)
+jwt = JWTManager(app)
+CORS(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = '로그인이 필요합니다.'
@@ -639,6 +645,293 @@ def seed_admin_user():
             changed = True
         if changed:
             db.session.commit()
+
+
+# ── API helpers ─────────────────────────────────────────────
+
+def fish_to_dict(f, detail=False):
+    imgs = [img.image_url for img in f.images]
+    if not imgs and f.image_url:
+        imgs = [f.image_url]
+    d = {
+        'id': f.id,
+        'title': f.title,
+        'category': f.category,
+        'species': f.species,
+        'price': f.price,
+        'image_url': imgs[0] if imgs else None,
+        'images': imgs,
+        'weight': f.weight or '',
+        'quantity': f.quantity or '',
+        'trade_type': f.trade_type or '',
+        'location': f.location or '',
+        'status': f.status,
+        'created_at': f.created_at.strftime('%Y년 %m월 %d일'),
+        'seller': {'id': f.seller.id, 'username': f.seller.username},
+    }
+    if detail:
+        d['description'] = f.description or ''
+    return d
+
+
+def room_to_dict(r, user_id):
+    partner = r.seller if r.buyer_id == user_id else r.buyer
+    imgs = [img.image_url for img in r.fish.images]
+    last_msg = r.messages[-1] if r.messages else None
+    return {
+        'id': r.id,
+        'fish': {
+            'id': r.fish.id,
+            'title': r.fish.title,
+            'price': r.fish.price,
+            'image_url': imgs[0] if imgs else (r.fish.image_url or ''),
+        },
+        'partner': {'id': partner.id, 'username': partner.username},
+        'last_message': last_msg.content if last_msg else '',
+        'last_at': last_msg.created_at.strftime('%H:%M') if last_msg else '',
+    }
+
+
+# ── API Routes ───────────────────────────────────────────────
+
+@app.route('/api/categories')
+def api_categories():
+    return jsonify(CATEGORIES)
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    user = User.query.filter_by(email=data.get('email')).first()
+    if not user or not check_password_hash(user.password_hash, data.get('password', '')):
+        return jsonify({'error': '이메일 또는 비밀번호가 올바르지 않습니다.'}), 401
+    if not user.is_verified:
+        return jsonify({'error': '이메일 인증이 필요합니다.'}), 403
+    token = create_access_token(identity=str(user.id))
+    return jsonify({'token': token, 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
+
+
+@app.route('/api/auth/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip()
+    password = data.get('password', '')
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': '이미 사용 중인 이메일입니다.'}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': '이미 사용 중인 닉네임입니다.'}), 400
+    user = User(username=username, email=email,
+                password_hash=generate_password_hash(password), is_verified=False)
+    db.session.add(user)
+    db.session.commit()
+    try:
+        send_verification_email(user)
+    except Exception:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'error': '인증 이메일 발송에 실패했습니다.'}), 500
+    return jsonify({'message': '인증 이메일을 발송했습니다. 이메일을 확인해주세요.'}), 201
+
+
+@app.route('/api/fish')
+def api_fish_list():
+    category_filter = request.args.get('category', '')
+    species_filter  = request.args.get('species', '')
+    search          = request.args.get('search', '')
+    query = Fish.query.filter_by(status='판매중')
+    if category_filter:
+        query = query.filter(Fish.category == category_filter)
+    if species_filter:
+        query = query.filter(Fish.species == species_filter)
+    if search:
+        query = query.filter(Fish.title.contains(search) | Fish.species.contains(search))
+    fish_list = query.order_by(Fish.created_at.desc()).all()
+    return jsonify([fish_to_dict(f) for f in fish_list])
+
+
+@app.route('/api/fish/<int:fish_id>')
+def api_fish_detail(fish_id):
+    fish = Fish.query.get_or_404(fish_id)
+    return jsonify(fish_to_dict(fish, detail=True))
+
+
+@app.route('/api/fish', methods=['POST'])
+@jwt_required()
+def api_fish_new():
+    user_id = int(get_jwt_identity())
+    fish = Fish(
+        seller_id=user_id,
+        title=request.form.get('title'),
+        category=request.form.get('category'),
+        species=request.form.get('species'),
+        price=int(request.form.get('price', 0)),
+        description=request.form.get('description', ''),
+        weight=request.form.get('weight', ''),
+        quantity=request.form.get('quantity', ''),
+        trade_type=request.form.get('trade_type', '직거래'),
+        location=request.form.get('location', ''),
+    )
+    db.session.add(fish)
+    db.session.flush()
+    files = request.files.getlist('images')
+    for i, file in enumerate(files):
+        if file.filename:
+            result = cloudinary.uploader.upload(file, folder='aqua-market')
+            url = result['secure_url']
+            if i == 0:
+                fish.image_url = url
+            db.session.add(FishImage(fish_id=fish.id, image_url=url, order=i))
+    db.session.commit()
+    return jsonify(fish_to_dict(fish, detail=True)), 201
+
+
+@app.route('/api/fish/<int:fish_id>', methods=['DELETE'])
+@jwt_required()
+def api_fish_delete(fish_id):
+    user_id = int(get_jwt_identity())
+    fish = Fish.query.get_or_404(fish_id)
+    user = db.session.get(User, user_id)
+    if fish.seller_id != user_id and not user.is_admin:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    db.session.delete(fish)
+    db.session.commit()
+    return jsonify({'message': '삭제되었습니다.'})
+
+
+@app.route('/api/fish/<int:fish_id>/status', methods=['PATCH'])
+@jwt_required()
+def api_update_status(fish_id):
+    user_id = int(get_jwt_identity())
+    fish = Fish.query.get_or_404(fish_id)
+    if fish.seller_id != user_id:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    status = request.get_json().get('status')
+    if status in ['판매중', '예약중', '판매완료']:
+        fish.status = status
+        db.session.commit()
+    return jsonify({'status': fish.status})
+
+
+@app.route('/api/seller/<int:user_id>')
+def api_seller_profile(user_id):
+    seller = User.query.get_or_404(user_id)
+    listings = Fish.query.filter_by(seller_id=user_id, status='판매중').order_by(Fish.created_at.desc()).all()
+    return jsonify({
+        'id': seller.id,
+        'username': seller.username,
+        'bio': seller.bio or '',
+        'listings': [fish_to_dict(f) for f in listings],
+    })
+
+
+@app.route('/api/me')
+@jwt_required()
+def api_me():
+    user = db.session.get(User, int(get_jwt_identity()))
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'bio': user.bio or '',
+        'bank_name': user.bank_name or '',
+        'bank_account': user.bank_account or '',
+        'is_admin': user.is_admin,
+    })
+
+
+@app.route('/api/me/bio', methods=['PATCH'])
+@jwt_required()
+def api_update_bio():
+    user = db.session.get(User, int(get_jwt_identity()))
+    user.bio = request.get_json().get('bio', '').strip()
+    db.session.commit()
+    return jsonify({'bio': user.bio})
+
+
+@app.route('/api/me/bank', methods=['PATCH'])
+@jwt_required()
+def api_update_bank():
+    user = db.session.get(User, int(get_jwt_identity()))
+    data = request.get_json()
+    user.bank_name    = data.get('bank_name', '')
+    user.bank_account = data.get('bank_account', '')
+    db.session.commit()
+    return jsonify({'bank_name': user.bank_name, 'bank_account': user.bank_account})
+
+
+@app.route('/api/me/listings')
+@jwt_required()
+def api_my_listings():
+    user_id = int(get_jwt_identity())
+    listings = Fish.query.filter_by(seller_id=user_id).order_by(Fish.created_at.desc()).all()
+    return jsonify([fish_to_dict(f) for f in listings])
+
+
+@app.route('/api/chat')
+@jwt_required()
+def api_chat_list():
+    user_id = int(get_jwt_identity())
+    buy_rooms  = ChatRoom.query.filter_by(buyer_id=user_id).all()
+    sell_rooms = ChatRoom.query.filter_by(seller_id=user_id).all()
+    return jsonify([room_to_dict(r, user_id) for r in buy_rooms + sell_rooms])
+
+
+@app.route('/api/chat/start/<int:fish_id>', methods=['POST'])
+@jwt_required()
+def api_start_chat(fish_id):
+    user_id = int(get_jwt_identity())
+    fish = Fish.query.get_or_404(fish_id)
+    if fish.seller_id == user_id:
+        return jsonify({'error': '본인 게시물에는 채팅을 시작할 수 없습니다.'}), 400
+    room = ChatRoom.query.filter_by(fish_id=fish_id, buyer_id=user_id).first()
+    if not room:
+        room = ChatRoom(fish_id=fish_id, buyer_id=user_id, seller_id=fish.seller_id)
+        db.session.add(room)
+        db.session.commit()
+    return jsonify({'room_id': room.id})
+
+
+@app.route('/api/chat/<int:room_id>/messages')
+@jwt_required()
+def api_get_messages(room_id):
+    user_id = int(get_jwt_identity())
+    room = ChatRoom.query.get_or_404(room_id)
+    if user_id not in [room.buyer_id, room.seller_id]:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    last_id = request.args.get('last_id', 0, type=int)
+    messages = Message.query.filter(
+        Message.room_id == room_id, Message.id > last_id
+    ).order_by(Message.created_at).all()
+    return jsonify([{
+        'id': m.id,
+        'content': m.content,
+        'sender': m.sender.username,
+        'is_mine': m.sender_id == user_id,
+        'created_at': m.created_at.strftime('%H:%M'),
+    } for m in messages])
+
+
+@app.route('/api/chat/<int:room_id>/send', methods=['POST'])
+@jwt_required()
+def api_send_message(room_id):
+    user_id = int(get_jwt_identity())
+    room = ChatRoom.query.get_or_404(room_id)
+    if user_id not in [room.buyer_id, room.seller_id]:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    content = request.get_json().get('content', '').strip()
+    if not content:
+        return jsonify({'error': '메시지 내용이 없습니다.'}), 400
+    message = Message(room_id=room_id, sender_id=user_id, content=content)
+    db.session.add(message)
+    db.session.commit()
+    return jsonify({
+        'id': message.id,
+        'content': message.content,
+        'sender': message.sender.username,
+        'is_mine': True,
+        'created_at': message.created_at.strftime('%H:%M'),
+    })
 
 
 with app.app_context():
