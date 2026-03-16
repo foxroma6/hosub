@@ -657,21 +657,70 @@ a { text-decoration: none; color: inherit; }
   line-height: 1.2;
 }
 
+/* ── 정보 섹션 ── */
+.info-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.info-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.info-row:last-child { border-bottom: none; }
+
+.info-label {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.info-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.price-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
 .detail-desc {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
   margin-bottom: 20px;
 }
 
-.detail-desc h3 {
-  font-size: 0.95rem;
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  font-weight: 600;
+.detail-desc .info-section-title {
+  border-bottom: 1px solid var(--border);
 }
 
 .detail-desc p {
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.75;
   white-space: pre-line;
+  padding: 14px 16px;
+  color: var(--text);
 }
 
 .bank-info {
