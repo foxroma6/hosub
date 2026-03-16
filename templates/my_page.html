@@ -12,6 +12,21 @@
   </div>
 
   <div class="my-grid">
+    <!-- 자기소개 -->
+    <div class="my-card" style="grid-column: span 2;">
+      <h3>자기소개</h3>
+      <form method="post" action="{{ url_for('update_bio') }}">
+        <div class="form-group">
+          <textarea name="bio" rows="3"
+            placeholder="판매자 프로필에 표시될 자기소개를 입력해주세요. (사육 경력, 전문 어종 등)"
+            >{{ current_user.bio or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">저장</button>
+        <a href="{{ url_for('seller_profile', user_id=current_user.id) }}"
+           class="btn btn-outline" style="margin-left:8px;">내 프로필 보기</a>
+      </form>
+    </div>
+
     <!-- 계좌 정보 -->
     <div class="my-card">
       <h3>계좌 정보 (계좌이체용)</h3>

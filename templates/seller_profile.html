@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ seller.username }} - AquaPet{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- 판매자 프로필 카드 -->
+  <div class="seller-profile-card">
+    <div class="seller-avatar-lg">{{ seller.username[0] }}</div>
+    <div class="seller-profile-info">
+      <h2 class="seller-name">{{ seller.username }}</h2>
+      {% if seller.bio %}
+        <p class="seller-bio">{{ seller.bio }}</p>
+      {% else %}
+        <p class="seller-bio empty">아직 자기소개가 없습니다.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 판매 중인 상품 -->
+  <div class="seller-listings-header">
+    <h3>판매 중인 상품 <span class="listings-count">{{ listings|length }}</span></h3>
+  </div>
+
+  {% if listings %}
+    <div class="fish-grid">
+      {% for fish in listings %}
+        <a href="{{ url_for('fish_detail', fish_id=fish.id) }}" class="fish-card">
+          <div class="fish-card-img">
+            {% set imgs = fish.images | list %}
+            {% if imgs %}
+              <img src="{{ imgs[0].image_url }}" alt="{{ fish.title }}">
+            {% elif fish.image_url %}
+              <img src="{{ fish.image_url }}" alt="{{ fish.title }}">
+            {% else %}
+              <div class="no-image">🐟</div>
+            {% endif %}
+            <span class="status-badge status-{{ fish.status }}" style="position:absolute;top:8px;left:8px;">
+              {{ fish.status }}
+            </span>
+          </div>
+          <div class="fish-card-body">
+            <div class="fish-species">{{ fish.category }} · {{ fish.species }}</div>
+            <div class="fish-title">{{ fish.title }}</div>
+            <div class="fish-price">{{ "{:,}".format(fish.price) }}원</div>
+            <div class="fish-meta">
+              <span>{{ fish.trade_type or '' }}</span>
+              <span>{{ fish.location or '' }}</span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🐠</div>
+      <p>현재 판매 중인 상품이 없습니다.</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

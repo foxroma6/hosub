@@ -76,7 +76,8 @@
         <div class="info-section-title section-seller">판매 정보</div>
         <div class="info-row">
           <span class="info-label">판매자</span>
-          <span class="info-value">{{ fish.seller.username }}</span>
+          <a href="{{ url_for('seller_profile', user_id=fish.seller_id) }}"
+             class="info-value seller-link">{{ fish.seller.username }}</a>
         </div>
         {% if fish.trade_type %}
         <div class="info-row">

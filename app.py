@@ -99,6 +99,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200))
     bank_name = db.Column(db.String(50))
     bank_account = db.Column(db.String(50))
+    bio = db.Column(db.Text)
     is_admin = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -435,6 +436,13 @@ def get_messages(room_id):
     } for m in messages])
 
 
+@app.route('/seller/<int:user_id>')
+def seller_profile(user_id):
+    seller = User.query.get_or_404(user_id)
+    listings = Fish.query.filter_by(seller_id=user_id, status='판매중').order_by(Fish.created_at.desc()).all()
+    return render_template('seller_profile.html', seller=seller, listings=listings)
+
+
 @app.route('/my')
 @login_required
 def my_page():
@@ -443,6 +451,15 @@ def my_page():
     sell_rooms = ChatRoom.query.filter_by(seller_id=current_user.id).all()
     return render_template('my_page.html', my_listings=my_listings,
                            buy_rooms=buy_rooms, sell_rooms=sell_rooms)
+
+
+@app.route('/my/bio', methods=['POST'])
+@login_required
+def update_bio():
+    current_user.bio = request.form.get('bio', '').strip()
+    db.session.commit()
+    flash('자기소개가 저장되었습니다.', 'success')
+    return redirect(url_for('my_page'))
 
 
 @app.route('/my/bank', methods=['POST'])
@@ -559,6 +576,11 @@ def run_migrations():
             conn.execute(text(
                 "ALTER TABLE fish ADD COLUMN trade_type VARCHAR(20) DEFAULT '직거래'"
             ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN bio TEXT'))
             conn.commit()
         except Exception:
             conn.rollback()
