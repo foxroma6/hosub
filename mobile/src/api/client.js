@@ -1,13 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const API_BASE = 'https://YOUR_RENDER_APP.onrender.com';
+export const API_BASE = 'https://hosub.onrender.com';
 
 const apiClient = axios.create({
   baseURL: API_BASE + '/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
 apiClient.interceptors.request.use(

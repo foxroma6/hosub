@@ -4,28 +4,15 @@ import {
   Text,
   TextInput,
   FlatList,
-  ScrollView,
   TouchableOpacity,
   Image,
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  Dimensions,
+  ScrollView,
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 36) / 2;
-
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+import { COLORS, FONTS } from '../constants/colors';
 
 const CATEGORIES = {
   '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
@@ -36,6 +23,24 @@ const CATEGORIES = {
 };
 
 const ALL_CATEGORIES = ['전체', ...Object.keys(CATEGORIES)];
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return '오늘';
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return `${diffDays}일 전`;
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
+}
 
 export default function HomeScreen({ navigation }) {
   const [fish, setFish] = useState([]);
@@ -49,18 +54,12 @@ export default function HomeScreen({ navigation }) {
   const fetchFish = useCallback(async () => {
     try {
       const params = {};
-      if (selectedCategory && selectedCategory !== '전체') {
-        params.category = selectedCategory;
-      }
-      if (selectedSpecies) {
-        params.species = selectedSpecies;
-      }
-      if (searchQuery) {
-        params.search = searchQuery;
-      }
+      if (selectedCategory && selectedCategory !== '전체') params.category = selectedCategory;
+      if (selectedSpecies) params.species = selectedSpecies;
+      if (searchQuery) params.search = searchQuery;
       const response = await apiClient.get('/fish', { params });
       setFish(response.data.fish || response.data || []);
-    } catch (error) {
+    } catch {
       setFish([]);
     } finally {
       setLoading(false);
@@ -78,68 +77,43 @@ export default function HomeScreen({ navigation }) {
     fetchFish();
   };
 
-  const handleSearch = () => {
-    setSearchQuery(searchText);
-  };
-
   const handleCategorySelect = (cat) => {
     setSelectedCategory(cat);
     setSelectedSpecies('');
   };
 
-  const handleSpeciesSelect = (sp) => {
-    setSelectedSpecies(selectedSpecies === sp ? '' : sp);
-  };
+  const subcategories = selectedCategory !== '전체' ? CATEGORIES[selectedCategory] || [] : [];
 
-  const subcategories =
-    selectedCategory !== '전체' ? CATEGORIES[selectedCategory] || [] : [];
-
-  const renderFishCard = ({ item }) => {
-    const imageUri =
-      item.images && item.images.length > 0
-        ? `${API_BASE}${item.images[0]}`
-        : null;
+  const renderFishItem = ({ item }) => {
+    const rawImage = item.images?.length > 0 ? item.images[0] : item.image_url || null;
+    const imageUri = getImageUri(rawImage);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={styles.listItem}
         onPress={() => navigation.navigate('FishDetail', { fish_id: item.id })}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
-        <View style={styles.cardImageContainer}>
-          {imageUri ? (
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.cardImagePlaceholder}>
-              <Text style={styles.cardImagePlaceholderText}>🐠</Text>
-            </View>
-          )}
-          {item.status && item.status !== '판매중' && (
-            <View style={[
-              styles.statusBadge,
-              item.status === '판매완료' ? styles.statusSold : styles.statusReserved,
-            ]}>
-              <Text style={styles.statusBadgeText}>{item.status}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.cardBody}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.thumbnail} resizeMode="cover" />
+        ) : (
+          <View style={styles.thumbnailPlaceholder}>
+            <Text style={styles.thumbnailPlaceholderText}>🐠</Text>
+          </View>
+        )}
+        <View style={styles.itemBody}>
+          <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
           {item.species ? (
             <View style={styles.speciesTag}>
               <Text style={styles.speciesTagText}>{item.species}</Text>
             </View>
           ) : null}
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.title}
+          <Text style={styles.itemPrice}>
+            {item.price != null ? `${Number(item.price).toLocaleString()}원` : '가격 문의'}
           </Text>
-          <Text style={styles.cardPrice}>
-            {item.price != null
-              ? `${Number(item.price).toLocaleString()}원`
-              : '가격 문의'}
+          <Text style={styles.itemMeta}>
+            {item.location ? `${item.location} · ` : ''}
+            {formatDate(item.created_at)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -152,19 +126,16 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.logoText}>AquaPet</Text>
       </View>
 
-      <View style={styles.searchRow}>
+      <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="어종, 상품명으로 검색..."
+          placeholder="검색어를 입력해주세요"
           placeholderTextColor={COLORS.textMuted}
           value={searchText}
           onChangeText={setSearchText}
-          onSubmitEditing={handleSearch}
+          onSubmitEditing={() => setSearchQuery(searchText)}
           returnKeyType="search"
         />
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Text style={styles.searchButtonText}>검색</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -177,15 +148,15 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             key={cat}
             style={[
-              styles.chip,
-              selectedCategory === cat && styles.chipSelected,
+              styles.categoryChip,
+              selectedCategory === cat && styles.categoryChipActive,
             ]}
             onPress={() => handleCategorySelect(cat)}
           >
             <Text
               style={[
-                styles.chipText,
-                selectedCategory === cat && styles.chipTextSelected,
+                styles.categoryChipText,
+                selectedCategory === cat && styles.categoryChipTextActive,
               ]}
             >
               {cat}
@@ -198,32 +169,32 @@ export default function HomeScreen({ navigation }) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.subcategoryScroll}
+          style={styles.subCategoryScroll}
           contentContainerStyle={styles.categoryScrollContent}
         >
-          {subcategories.map((sp) => (
+          {subcategories.map((sub) => (
             <TouchableOpacity
-              key={sp}
+              key={sub}
               style={[
-                styles.subchip,
-                selectedSpecies === sp && styles.subchipSelected,
+                styles.categoryChip,
+                selectedSpecies === sub && styles.categoryChipActive,
               ]}
-              onPress={() => handleSpeciesSelect(sp)}
+              onPress={() => setSelectedSpecies(selectedSpecies === sub ? '' : sub)}
             >
               <Text
                 style={[
-                  styles.subchipText,
-                  selectedSpecies === sp && styles.subchipTextSelected,
+                  styles.categoryChipText,
+                  selectedSpecies === sub && styles.categoryChipTextActive,
                 ]}
               >
-                {sp}
+                {sub}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       )}
 
-      <View style={styles.listHeader}>
+      <View style={styles.listHeaderRow}>
         <Text style={styles.listHeaderText}>
           {selectedCategory === '전체' ? '전체 상품' : selectedCategory}
           {selectedSpecies ? ` · ${selectedSpecies}` : ''}
@@ -246,14 +217,12 @@ export default function HomeScreen({ navigation }) {
       <FlatList
         data={fish}
         keyExtractor={(item) => String(item.id)}
-        renderItem={renderFishCard}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
+        renderItem={renderFishItem}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>🐟</Text>
-            <Text style={styles.emptySubText}>등록된 상품이 없습니다</Text>
+            <Text style={styles.emptyIcon}>🐠</Text>
+            <Text style={styles.emptyText}>판매 중인 상품이 없습니다</Text>
           </View>
         }
         refreshControl={
@@ -289,109 +258,75 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   logoText: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: FONTS.extrabold,
     color: COLORS.primary,
-    letterSpacing: 0.5,
   },
-  searchRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
+  searchContainer: {
+    paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    gap: 8,
   },
   searchInput: {
-    flex: 1,
-    height: 40,
+    height: 42,
     backgroundColor: COLORS.background,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    color: COLORS.text,
-    fontSize: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  searchButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    paddingHorizontal: 14,
     fontSize: 14,
+    color: COLORS.text,
   },
   categoryScroll: {
     backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  subCategoryScroll: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   categoryScrollContent: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
   },
-  chip: {
+  categoryChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 6,
-  },
-  chipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: 13,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  chipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  subcategoryScroll: {
-    backgroundColor: '#F5FAFF',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  subchip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginRight: 6,
+    marginRight: 8,
   },
-  subchipSelected: {
-    backgroundColor: COLORS.primaryDark,
-    borderColor: COLORS.primaryDark,
+  categoryChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
-  subchipText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+  categoryChipText: {
+    fontSize: 13,
+    color: COLORS.textSub,
+    fontWeight: FONTS.medium,
   },
-  subchipTextSelected: {
+  categoryChipTextActive: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: FONTS.semibold,
   },
-  listHeader: {
+  listHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: COLORS.background,
   },
   listHeaderText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: FONTS.semibold,
     color: COLORS.text,
   },
   listCount: {
@@ -399,97 +334,80 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   listContent: {
-    paddingBottom: 20,
-  },
-  row: {
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  card: {
-    width: CARD_WIDTH,
+    paddingBottom: 24,
     backgroundColor: COLORS.surface,
+  },
+  listItem: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  thumbnail: {
+    width: 80,
+    height: 80,
     borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: COLORS.divider,
   },
-  cardImageContainer: {
-    position: 'relative',
-  },
-  cardImage: {
-    width: '100%',
-    height: CARD_WIDTH * 0.8,
-  },
-  cardImagePlaceholder: {
-    width: '100%',
-    height: CARD_WIDTH * 0.8,
-    backgroundColor: COLORS.background,
+  thumbnailPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardImagePlaceholderText: {
-    fontSize: 36,
+  thumbnailPlaceholderText: {
+    fontSize: 30,
   },
-  statusBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+  itemBody: {
+    flex: 1,
+    paddingTop: 2,
   },
-  statusSold: {
-    backgroundColor: '#666',
-  },
-  statusReserved: {
-    backgroundColor: '#E8A020',
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  cardBody: {
-    padding: 10,
+  itemTitle: {
+    fontSize: 15,
+    fontWeight: FONTS.semibold,
+    color: COLORS.text,
+    lineHeight: 21,
+    marginBottom: 4,
   },
   speciesTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E8F4FF',
-    borderRadius: 6,
-    paddingHorizontal: 7,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     marginBottom: 5,
   },
   speciesTagText: {
     fontSize: 11,
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontWeight: FONTS.medium,
   },
-  cardTitle: {
-    fontSize: 13,
+  itemPrice: {
+    fontSize: 15,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
-    fontWeight: '500',
-    lineHeight: 18,
-    marginBottom: 5,
+    marginBottom: 4,
   },
-  cardPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primaryDark,
+  itemMeta: {
+    fontSize: 12,
+    color: COLORS.textSub,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
+    backgroundColor: COLORS.surface,
   },
-  emptyText: {
-    fontSize: 48,
+  emptyIcon: {
+    fontSize: 52,
     marginBottom: 12,
   },
-  emptySubText: {
+  emptyText: {
     fontSize: 15,
     color: COLORS.textMuted,
   },

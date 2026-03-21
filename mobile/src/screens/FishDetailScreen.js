@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -10,36 +10,25 @@ import {
   ScrollView,
   Alert,
   Dimensions,
-  Linking,
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
+import { COLORS, FONTS } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
-
-function SectionHeader({ title, color }) {
-  return (
-    <View style={[styles.sectionHeader, { backgroundColor: color }]}>
-      <Text style={styles.sectionHeaderText}>{title}</Text>
-    </View>
-  );
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
 }
 
 function InfoRow({ label, value }) {
+  if (!value) return null;
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || '-'}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
 }
@@ -61,7 +50,7 @@ export default function FishDetailScreen({ route, navigation }) {
     try {
       const response = await apiClient.get(`/fish/${fish_id}`);
       setFish(response.data);
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '상품 정보를 불러오지 못했습니다.');
       navigation.goBack();
     } finally {
@@ -80,7 +69,7 @@ export default function FishDetailScreen({ route, navigation }) {
         fish_price: fish?.price,
         fish_image: fish?.images?.[0],
       });
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '채팅을 시작할 수 없습니다. 다시 시도해주세요.');
     } finally {
       setActionLoading(false);
@@ -90,9 +79,9 @@ export default function FishDetailScreen({ route, navigation }) {
   const handleStatusChange = async (newStatus) => {
     setActionLoading(true);
     try {
-      await apiClient.patch(`/fish/${fish_id}`, { status: newStatus });
+      await apiClient.patch(`/fish/${fish_id}/status`, { status: newStatus });
       setFish((prev) => ({ ...prev, status: newStatus }));
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '상태 변경에 실패했습니다.');
     } finally {
       setActionLoading(false);
@@ -112,19 +101,13 @@ export default function FishDetailScreen({ route, navigation }) {
             Alert.alert('완료', '상품이 삭제되었습니다.', [
               { text: '확인', onPress: () => navigation.goBack() },
             ]);
-          } catch (error) {
+          } catch {
             Alert.alert('오류', '삭제에 실패했습니다.');
             setActionLoading(false);
           }
         },
       },
     ]);
-  };
-
-  const handleSellerPress = () => {
-    if (fish?.seller_id) {
-      navigation.navigate('SellerProfile', { user_id: fish.seller_id });
-    }
   };
 
   if (loading) {
@@ -138,19 +121,13 @@ export default function FishDetailScreen({ route, navigation }) {
   if (!fish) return null;
 
   const images = fish.images || [];
-  const isOwner = user && fish.seller_id === user.id;
+  const isOwner = user && fish.seller?.id === user.id;
   const isLoggedIn = !!user;
 
-  const statusColors = {
-    '판매중': '#22A85A',
-    '예약중': '#E8A020',
-    '판매완료': '#888888',
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  const statusColor = {
+    '판매중': COLORS.badge.active,
+    '예약중': COLORS.badge.reserved,
+    '판매완료': COLORS.badge.done,
   };
 
   return (
@@ -167,14 +144,12 @@ export default function FishDetailScreen({ route, navigation }) {
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(item, index) => String(index)}
                 onMomentumScrollEnd={(e) => {
-                  const index = Math.round(
-                    e.nativeEvent.contentOffset.x / width
-                  );
+                  const index = Math.round(e.nativeEvent.contentOffset.x / width);
                   setCurrentImageIndex(index);
                 }}
                 renderItem={({ item }) => (
                   <Image
-                    source={{ uri: `${API_BASE}${item}` }}
+                    source={{ uri: getImageUri(item) }}
                     style={styles.carouselImage}
                     resizeMode="cover"
                   />
@@ -197,92 +172,75 @@ export default function FishDetailScreen({ route, navigation }) {
           ) : (
             <View style={styles.carouselPlaceholder}>
               <Text style={styles.carouselPlaceholderText}>🐠</Text>
-              <Text style={styles.carouselPlaceholderLabel}>이미지 없음</Text>
             </View>
           )}
         </View>
 
-        {/* Status & Tags */}
-        <View style={styles.tagsRow}>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusColors[fish.status] || '#888' },
-            ]}
-          >
-            <Text style={styles.statusBadgeText}>{fish.status || '판매중'}</Text>
-          </View>
-          {fish.category && (
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>{fish.category}</Text>
-            </View>
-          )}
-          {fish.species && (
-            <View style={styles.speciesTag}>
-              <Text style={styles.speciesTagText}>{fish.species}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Title */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>{fish.title}</Text>
-        </View>
-
-        {/* 상품 정보 */}
-        <View style={styles.section}>
-          <SectionHeader title="상품 정보" color={COLORS.primary} />
-          <View style={styles.sectionBody}>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>가격</Text>
-              <Text style={styles.priceValue}>
-                {fish.price != null
-                  ? `${Number(fish.price).toLocaleString()}원`
-                  : '가격 문의'}
-              </Text>
-            </View>
-            {fish.weight && <InfoRow label="무게" value={fish.weight} />}
-            {fish.quantity && (
-              <InfoRow label="수량" value={`${fish.quantity}마리`} />
-            )}
-          </View>
-        </View>
-
-        {/* 판매 정보 */}
-        <View style={styles.section}>
-          <SectionHeader title="판매 정보" color="#3AADA8" />
-          <View style={styles.sectionBody}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>판매자</Text>
-              <TouchableOpacity onPress={handleSellerPress}>
-                <Text style={[styles.infoValue, styles.sellerLink]}>
-                  {fish.seller_username || fish.seller || '-'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <InfoRow
-              label="거래 방식"
-              value={fish.trade_type || fish.tradeType}
-            />
-            <InfoRow label="지역" value={fish.location} />
-            <InfoRow label="등록일" value={formatDate(fish.created_at)} />
-          </View>
-        </View>
-
-        {/* 상품 설명 */}
-        <View style={styles.section}>
-          <SectionHeader title="상품 설명" color="#8B79D0" />
-          <View style={styles.sectionBody}>
-            <Text style={styles.descriptionText}>
-              {fish.description || '설명이 없습니다.'}
+        {/* Seller Row */}
+        <TouchableOpacity
+          style={styles.sellerRow}
+          onPress={() => {
+            if (fish?.seller?.id) {
+              navigation.navigate('SellerProfile', { user_id: fish.seller.id });
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.sellerAvatar}>
+            <Text style={styles.sellerAvatarText}>
+              {(fish.seller?.username || '?').charAt(0).toUpperCase()}
             </Text>
           </View>
+          <Text style={styles.sellerUsername}>{fish.seller?.username || '알 수 없음'}</Text>
+          <Text style={styles.sellerViewMore}>판매자 정보 보기 ›</Text>
+        </TouchableOpacity>
+
+        {/* Title Section */}
+        <View style={styles.titleSection}>
+          <View style={styles.badgeRow}>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor[fish.status] || COLORS.badge.done }]}>
+              <Text style={styles.statusBadgeText}>{fish.status || '판매중'}</Text>
+            </View>
+            {fish.category && (
+              <View style={styles.categoryChip}>
+                <Text style={styles.categoryChipText}>{fish.category}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.title}>{fish.title}</Text>
+          <Text style={styles.price}>
+            {fish.price != null ? `${Number(fish.price).toLocaleString()}원` : '가격 문의'}
+          </Text>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.sectionDivider} />
+
+        {/* 상품 정보 */}
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>상품 정보</Text>
+          <InfoRow label="크기" value={fish.weight} />
+          <InfoRow label="수량" value={fish.quantity ? `${fish.quantity}마리` : null} />
+          <InfoRow label="판매방법" value={fish.trade_type || fish.tradeType} />
+          <InfoRow label="거래지역" value={fish.location} />
+          <InfoRow label="등록일" value={fish.created_at} />
+        </View>
+
+        {/* Divider */}
+        <View style={styles.sectionDivider} />
+
+        {/* 상품 설명 */}
+        <View style={styles.descSection}>
+          <Text style={styles.sectionTitle}>상품 설명</Text>
+          <Text style={styles.descriptionText}>
+            {fish.description || '설명이 없습니다.'}
+          </Text>
         </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Bottom Action Bar */}
+      {/* Sticky Bottom Bar */}
       <View style={styles.actionBar}>
         {isOwner ? (
           <View style={styles.ownerActions}>
@@ -297,22 +255,13 @@ export default function FishDetailScreen({ route, navigation }) {
                   onPress={() => handleStatusChange(s)}
                   disabled={actionLoading || fish.status === s}
                 >
-                  <Text
-                    style={[
-                      styles.statusBtnText,
-                      fish.status === s && styles.statusBtnTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.statusBtnText, fish.status === s && styles.statusBtnTextActive]}>
                     {s}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDelete}
-              disabled={actionLoading}
-            >
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={actionLoading}>
               {actionLoading ? (
                 <ActivityIndicator color="#FFF" size="small" />
               ) : (
@@ -322,7 +271,7 @@ export default function FishDetailScreen({ route, navigation }) {
           </View>
         ) : isLoggedIn ? (
           <TouchableOpacity
-            style={styles.chatButton}
+            style={[styles.chatButton, fish.status === '판매완료' && styles.chatButtonDisabled]}
             onPress={handleStartChat}
             disabled={actionLoading || fish.status === '판매완료'}
           >
@@ -350,7 +299,7 @@ export default function FishDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   loadingContainer: {
     flex: 1,
@@ -360,12 +309,12 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     width: width,
-    height: width * 0.75,
-    backgroundColor: '#E0EDF8',
+    height: 320,
+    backgroundColor: COLORS.divider,
   },
   carouselImage: {
     width: width,
-    height: width * 0.75,
+    height: 320,
   },
   carouselPlaceholder: {
     flex: 1,
@@ -373,16 +322,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   carouselPlaceholderText: {
-    fontSize: 60,
-    marginBottom: 8,
-  },
-  carouselPlaceholderLabel: {
-    fontSize: 14,
-    color: COLORS.textMuted,
+    fontSize: 64,
   },
   dotsContainer: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 14,
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -398,14 +342,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     width: 18,
   },
-  tagsRow: {
+  sellerRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    gap: 10,
+  },
+  sellerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sellerAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: FONTS.bold,
+  },
+  sellerUsername: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: FONTS.semibold,
+    color: COLORS.text,
+  },
+  sellerViewMore: {
+    fontSize: 12,
+    color: COLORS.textSub,
+  },
+  titleSection: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 18,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.surface,
+    marginBottom: 10,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -414,102 +392,65 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: FONTS.semibold,
   },
-  categoryTag: {
+  categoryChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#E8F4FF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.primaryLight,
   },
-  categoryTagText: {
-    fontSize: 13,
+  categoryChipText: {
+    fontSize: 12,
     color: COLORS.primary,
-    fontWeight: '500',
-  },
-  speciesTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#F0F8FF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  speciesTagText: {
-    fontSize: 13,
-    color: COLORS.primaryDark,
-  },
-  titleContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    fontWeight: FONTS.medium,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
     color: COLORS.text,
     lineHeight: 28,
+    marginTop: 8,
   },
-  section: {
-    marginTop: 10,
-    backgroundColor: COLORS.surface,
+  price: {
+    fontSize: 24,
+    fontWeight: FONTS.extrabold,
+    color: COLORS.primary,
+    marginTop: 6,
   },
-  sectionHeader: {
+  sectionDivider: {
+    height: 8,
+    backgroundColor: COLORS.divider,
+  },
+  infoSection: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
-  sectionHeaderText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  sectionBody: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  priceRow: {
-    flexDirection: 'row',
+  sectionTitle: {
+    fontSize: 13,
+    color: COLORS.textSub,
+    fontWeight: FONTS.semibold,
     marginBottom: 10,
-    alignItems: 'center',
-  },
-  priceLabel: {
-    width: 90,
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontWeight: '500',
-  },
-  priceValue: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.primaryDark,
   },
   infoRow: {
     flexDirection: 'row',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F6FC',
   },
   infoLabel: {
-    width: 90,
+    width: 80,
     fontSize: 14,
-    color: COLORS.textMuted,
-    fontWeight: '500',
+    color: COLORS.textSub,
   },
   infoValue: {
     flex: 1,
     fontSize: 14,
     color: COLORS.text,
+    fontWeight: FONTS.medium,
   },
-  sellerLink: {
-    color: COLORS.primary,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+  descSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   descriptionText: {
     fontSize: 14,
@@ -517,27 +458,34 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   bottomSpacer: {
-    height: 20,
+    height: 100,
   },
   actionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: COLORS.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     paddingBottom: 28,
   },
   chatButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
+    height: 50,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatButtonDisabled: {
+    backgroundColor: COLORS.badge.done,
   },
   chatButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   ownerActions: {
     gap: 10,
@@ -561,21 +509,21 @@ const styles = StyleSheet.create({
   },
   statusBtnText: {
     fontSize: 13,
-    color: COLORS.textMuted,
-    fontWeight: '600',
+    color: COLORS.textSub,
+    fontWeight: FONTS.semibold,
   },
   statusBtnTextActive: {
     color: '#FFFFFF',
   },
   deleteButton: {
-    backgroundColor: '#D63B3B',
+    backgroundColor: '#EF4444',
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: 'center',
   },
   deleteButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
 });

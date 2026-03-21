@@ -10,33 +10,34 @@ import {
   Alert,
   Image,
   RefreshControl,
-  ScrollView,
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
+import { COLORS, FONTS } from '../constants/colors';
 
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
+}
 
-function AvatarCircle({ name, size = 64 }) {
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return '오늘';
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return `${diffDays}일 전`;
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function AvatarCircle({ name, size = 60 }) {
   const initial = name ? name.charAt(0).toUpperCase() : '?';
   return (
-    <View
-      style={[
-        styles.avatarCircle,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>
-        {initial}
-      </Text>
+    <View style={[styles.avatarCircle, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>{initial}</Text>
     </View>
   );
 }
@@ -52,7 +53,7 @@ export default function MyPageScreen({ navigation }) {
   const [bioSaving, setBioSaving] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
       const [meResponse, listingsResponse] = await Promise.all([
         apiClient.get('/me'),
@@ -62,17 +63,27 @@ export default function MyPageScreen({ navigation }) {
       setProfile(userData);
       setBio(userData.bio || '');
       setListings(listingsResponse.data.listings || listingsResponse.data || []);
-    } catch (error) {
-      Alert.alert('오류', '프로필 정보를 불러오지 못했습니다.');
+    } catch {
+      if (!silent && authUser) {
+        setProfile(authUser);
+        setBio(authUser.bio || '');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (authUser) {
+      setProfile(authUser);
+      setBio(authUser.bio || '');
+      setLoading(false);
+      fetchData(true);
+    } else {
+      fetchData(false);
+    }
+  }, [authUser]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -85,8 +96,7 @@ export default function MyPageScreen({ navigation }) {
       await apiClient.patch('/me/bio', { bio: bio.trim() });
       setProfile((prev) => ({ ...prev, bio: bio.trim() }));
       setEditingBio(false);
-      Alert.alert('완료', '자기소개가 저장되었습니다.');
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '저장에 실패했습니다.');
     } finally {
       setBioSaving(false);
@@ -99,66 +109,42 @@ export default function MyPageScreen({ navigation }) {
       {
         text: '로그아웃',
         style: 'destructive',
-        onPress: async () => {
-          await logout();
-        },
+        onPress: async () => { await logout(); },
       },
     ]);
   };
 
-  const statusColors = {
-    '판매중': '#22A85A',
-    '예약중': '#E8A020',
-    '판매완료': '#888888',
-  };
-
   const renderListing = ({ item }) => {
-    const imageUri =
-      item.images && item.images.length > 0
-        ? `${API_BASE}${item.images[0]}`
-        : null;
+    const rawImage = item.images?.length > 0 ? item.images[0] : null;
+    const imageUri = getImageUri(rawImage);
 
     return (
       <TouchableOpacity
         style={styles.listingItem}
         onPress={() => navigation.navigate('FishDetail', { fish_id: item.id })}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
         {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.listingImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: imageUri }} style={styles.listingImage} resizeMode="cover" />
         ) : (
           <View style={styles.listingImagePlaceholder}>
-            <Text style={{ fontSize: 20 }}>🐠</Text>
+            <Text style={styles.listingImagePlaceholderText}>🐠</Text>
           </View>
         )}
         <View style={styles.listingBody}>
-          <Text style={styles.listingTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <Text style={styles.listingTitle} numberOfLines={2}>{item.title}</Text>
+          {item.species ? (
+            <View style={styles.speciesTag}>
+              <Text style={styles.speciesTagText}>{item.species}</Text>
+            </View>
+          ) : null}
           <Text style={styles.listingPrice}>
-            {item.price != null
-              ? `${Number(item.price).toLocaleString()}원`
-              : '가격 문의'}
+            {item.price != null ? `${Number(item.price).toLocaleString()}원` : '가격 문의'}
           </Text>
-          <View style={styles.listingMeta}>
-            {item.status && (
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusColors[item.status] || '#888' },
-                ]}
-              >
-                <Text style={styles.statusBadgeText}>{item.status}</Text>
-              </View>
-            )}
-            {item.species && (
-              <Text style={styles.speciesText}>{item.species}</Text>
-            )}
-          </View>
+          <Text style={styles.listingMeta}>
+            {item.location ? `${item.location} · ` : ''}
+            {formatDate(item.created_at)}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -171,6 +157,8 @@ export default function MyPageScreen({ navigation }) {
       </View>
     );
   }
+
+  const displayUser = profile || authUser;
 
   return (
     <View style={styles.container}>
@@ -188,83 +176,84 @@ export default function MyPageScreen({ navigation }) {
         }
         ListHeaderComponent={
           <View>
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.headerTitle}>MY</Text>
-              <TouchableOpacity onPress={handleLogout}>
-                <Text style={styles.logoutText}>로그아웃</Text>
-              </TouchableOpacity>
             </View>
 
-            {/* Profile Card */}
-            <View style={styles.profileCard}>
-              <AvatarCircle name={profile?.username || authUser?.username} size={72} />
+            {/* Profile Section */}
+            <View style={styles.profileSection}>
+              <AvatarCircle name={displayUser?.username} size={60} />
               <View style={styles.profileInfo}>
                 <Text style={styles.profileUsername}>
-                  {profile?.username || authUser?.username || '-'}
+                  {displayUser?.username || '-'}
                 </Text>
                 <Text style={styles.profileEmail}>
-                  {profile?.email || authUser?.email || '-'}
+                  {displayUser?.email || '-'}
                 </Text>
-              </View>
-            </View>
-
-            {/* Bio Section */}
-            <View style={styles.bioSection}>
-              <View style={styles.bioHeader}>
-                <Text style={styles.bioTitle}>자기소개</Text>
                 <TouchableOpacity
+                  style={styles.editBioBtn}
                   onPress={() => setEditingBio(!editingBio)}
                 >
-                  <Text style={styles.editBioButton}>
-                    {editingBio ? '취소' : '수정'}
+                  <Text style={styles.editBioBtnText}>
+                    {editingBio ? '취소' : '자기소개 수정'}
                   </Text>
                 </TouchableOpacity>
               </View>
-              {editingBio ? (
-                <View style={styles.bioEditContainer}>
-                  <TextInput
-                    style={styles.bioInput}
-                    value={bio}
-                    onChangeText={setBio}
-                    placeholder="자기소개를 입력해주세요..."
-                    placeholderTextColor={COLORS.textMuted}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                  />
-                  <TouchableOpacity
-                    style={[styles.bioSaveButton, bioSaving && styles.bioSaveButtonDisabled]}
-                    onPress={handleSaveBio}
-                    disabled={bioSaving}
-                  >
-                    {bioSaving ? (
-                      <ActivityIndicator color="#FFF" size="small" />
-                    ) : (
-                      <Text style={styles.bioSaveButtonText}>저장</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Text style={styles.bioText}>
-                  {profile?.bio || '자기소개가 없습니다. 수정 버튼을 눌러 추가해보세요.'}
-                </Text>
-              )}
             </View>
 
-            {/* View Profile Button */}
+            {/* Bio */}
+            {editingBio ? (
+              <View style={styles.bioEditSection}>
+                <TextInput
+                  style={styles.bioInput}
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder="자기소개를 입력해주세요..."
+                  placeholderTextColor={COLORS.textMuted}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                <TouchableOpacity
+                  style={[styles.bioSaveButton, bioSaving && styles.bioSaveButtonDisabled]}
+                  onPress={handleSaveBio}
+                  disabled={bioSaving}
+                >
+                  {bioSaving ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.bioSaveButtonText}>저장</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.bioDisplaySection}>
+                <Text style={[styles.bioText, !displayUser?.bio && styles.bioTextEmpty]}>
+                  {displayUser?.bio || '자기소개를 작성해보세요'}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.menuDivider} />
+
+            {/* Menu Items */}
             <TouchableOpacity
-              style={styles.viewProfileButton}
-              onPress={() =>
-                navigation.navigate('SellerProfile', {
-                  user_id: profile?.id || authUser?.id,
-                })
-              }
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('SellerProfile', { user_id: displayUser?.id })}
+              activeOpacity={0.7}
             >
-              <Text style={styles.viewProfileButtonText}>
-                내 프로필 보기 →
-              </Text>
+              <Text style={styles.menuItemLabel}>내 프로필 보기</Text>
+              <Text style={styles.menuItemArrow}>›</Text>
             </TouchableOpacity>
+
+            <View style={styles.menuItem}>
+              <Text style={styles.menuItemLabel}>판매 상품 관리</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{listings.length}</Text>
+              </View>
+            </View>
+
+            <View style={styles.menuDivider} />
 
             {/* Listings Header */}
             <View style={styles.listingsHeader}>
@@ -285,8 +274,21 @@ export default function MyPageScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         }
+        ListFooterComponent={
+          listings.length > 0 ? (
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+              <Text style={styles.logoutText}>로그아웃</Text>
+            </TouchableOpacity>
+          ) : null
+        }
         showsVerticalScrollIndicator={false}
       />
+
+      {listings.length === 0 && (
+        <TouchableOpacity style={styles.logoutBtnFixed} onPress={handleLogout}>
+          <Text style={styles.logoutText}>로그아웃</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -294,7 +296,7 @@ export default function MyPageScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   loadingContainer: {
     flex: 1,
@@ -303,9 +305,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 14,
@@ -314,28 +313,18 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
   },
-  logoutText: {
-    fontSize: 14,
-    color: '#D63B3B',
-    fontWeight: '600',
-  },
-  profileCard: {
+  profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
   },
   avatarCircle: {
     backgroundColor: COLORS.primary,
@@ -344,55 +333,55 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   profileInfo: {
     flex: 1,
   },
   profileUsername: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   profileEmail: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
+    marginBottom: 8,
   },
-  bioSection: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    marginBottom: 12,
+  editBioBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  bioHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  editBioBtnText: {
+    fontSize: 12,
+    color: COLORS.textSub,
+    fontWeight: FONTS.medium,
   },
-  bioTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  editBioButton: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
+  bioDisplaySection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
   },
   bioText: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
     lineHeight: 20,
   },
-  bioEditContainer: {
+  bioTextEmpty: {
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+  },
+  bioEditSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
     gap: 10,
   },
   bioInput: {
@@ -403,7 +392,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
     backgroundColor: COLORS.background,
-    minHeight: 80,
+    minHeight: 70,
     textAlignVertical: 'top',
   },
   bioSaveButton: {
@@ -417,23 +406,44 @@ const styles = StyleSheet.create({
   },
   bioSaveButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
     fontSize: 14,
   },
-  viewProfileButton: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
+  menuDivider: {
+    height: 8,
+    backgroundColor: COLORS.divider,
   },
-  viewProfileButtonText: {
-    color: COLORS.primary,
-    fontWeight: '700',
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  menuItemLabel: {
     fontSize: 15,
+    color: COLORS.text,
+    fontWeight: FONTS.medium,
+  },
+  menuItemArrow: {
+    fontSize: 18,
+    color: COLORS.textSub,
+  },
+  countBadge: {
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  countBadgeText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: FONTS.bold,
   },
   listingsHeader: {
     flexDirection: 'row',
@@ -441,12 +451,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
   },
   listingsHeaderText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
   },
   listingsCount: {
@@ -455,68 +463,68 @@ const styles = StyleSheet.create({
   },
   listingItem: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    gap: 12,
-    alignItems: 'center',
+    borderBottomColor: COLORS.divider,
+    gap: 14,
+    alignItems: 'flex-start',
   },
   listingImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: COLORS.divider,
   },
   listingImagePlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
-    backgroundColor: COLORS.background,
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  },
+  listingImagePlaceholderText: {
+    fontSize: 30,
   },
   listingBody: {
     flex: 1,
+    paddingTop: 2,
   },
   listingTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: FONTS.semibold,
     color: COLORS.text,
-    lineHeight: 20,
+    lineHeight: 21,
     marginBottom: 4,
+  },
+  speciesTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  speciesTagText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: FONTS.medium,
   },
   listingPrice: {
     fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.primaryDark,
-    marginBottom: 5,
+    fontWeight: FONTS.bold,
+    color: COLORS.text,
+    marginBottom: 3,
   },
   listingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  speciesText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingTop: 48,
+    paddingBottom: 24,
   },
   emptyIcon: {
     fontSize: 44,
@@ -525,7 +533,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: COLORS.textMuted,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   addListingButton: {
     backgroundColor: COLORS.primary,
@@ -535,7 +543,22 @@ const styles = StyleSheet.create({
   },
   addListingButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
     fontSize: 14,
+  },
+  logoutBtn: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  logoutBtnFixed: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  logoutText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: FONTS.semibold,
   },
 });

@@ -16,16 +16,16 @@ export function AuthProvider({ children }) {
   const restoreSession = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('token');
-      if (storedToken) {
-        setToken(storedToken);
-        const response = await apiClient.get('/me', {
-          headers: { Authorization: `Bearer ${storedToken}` },
-        });
-        setUser(response.data);
-      }
-    } catch (error) {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      if (!storedToken) return;
+      setToken(storedToken);
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) setUser(JSON.parse(storedUser));
+      // 백그라운드에서 최신 정보 갱신 (실패해도 무관)
+      apiClient.get('/me', {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      }).then((res) => setUser(res.data)).catch(() => {});
+    } catch {
+      await AsyncStorage.multiRemove(['token', 'user']);
       setToken(null);
       setUser(null);
     } finally {

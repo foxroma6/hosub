@@ -15,16 +15,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../api/client';
 import { AuthContext } from '../context/AuthContext';
-
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+import { COLORS, FONTS } from '../constants/colors';
 
 const CATEGORIES = {
   '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
@@ -34,36 +25,7 @@ const CATEGORIES = {
   '수초 & 식물': [],
 };
 
-const TRADE_TYPES = ['직거래', '택배', '직거래 · 택배 모두 가능'];
-
-function SelectorRow({ label, options, selected, onSelect }) {
-  return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.selectorRow}>
-        {options.map((opt) => (
-          <TouchableOpacity
-            key={opt}
-            style={[
-              styles.selectorChip,
-              selected === opt && styles.selectorChipActive,
-            ]}
-            onPress={() => onSelect(opt)}
-          >
-            <Text
-              style={[
-                styles.selectorChipText,
-                selected === opt && styles.selectorChipTextActive,
-              ]}
-            >
-              {opt}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
+const TRADE_TYPES = ['직거래', '택배', '모두 가능'];
 
 export default function NewFishScreen({ navigation }) {
   const { token } = useContext(AuthContext);
@@ -80,6 +42,12 @@ export default function NewFishScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [titleFocused, setTitleFocused] = useState(false);
+  const [priceFocused, setPriceFocused] = useState(false);
+  const [weightFocused, setWeightFocused] = useState(false);
+  const [quantityFocused, setQuantityFocused] = useState(false);
+  const [locationFocused, setLocationFocused] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
 
   const pickImages = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,22 +79,10 @@ export default function NewFishScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      setError('제목을 입력해주세요.');
-      return;
-    }
-    if (!category) {
-      setError('카테고리를 선택해주세요.');
-      return;
-    }
-    if (!price) {
-      setError('가격을 입력해주세요.');
-      return;
-    }
-    if (!tradeType) {
-      setError('거래 방식을 선택해주세요.');
-      return;
-    }
+    if (!title.trim()) { setError('제목을 입력해주세요.'); return; }
+    if (!category) { setError('카테고리를 선택해주세요.'); return; }
+    if (!price) { setError('가격을 입력해주세요.'); return; }
+    if (!tradeType) { setError('거래 방식을 선택해주세요.'); return; }
 
     setLoading(true);
     setError('');
@@ -201,25 +157,14 @@ export default function NewFishScreen({ navigation }) {
       >
         <Text style={styles.screenTitle}>상품 등록</Text>
 
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
         {/* Image Picker */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>
-            사진 ({images.length}/5)
-          </Text>
+          <Text style={styles.inputLabel}>사진 ({images.length}/5)</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.imageRow}>
               {images.map((img, index) => (
                 <View key={index} style={styles.imageThumbnailContainer}>
-                  <Image
-                    source={{ uri: img.uri }}
-                    style={styles.imageThumbnail}
-                  />
+                  <Image source={{ uri: img.uri }} style={styles.imageThumbnail} />
                   <TouchableOpacity
                     style={styles.removeImageBtn}
                     onPress={() => removeImage(index)}
@@ -234,10 +179,7 @@ export default function NewFishScreen({ navigation }) {
                 </View>
               ))}
               {images.length < 5 && (
-                <TouchableOpacity
-                  style={styles.addImageBtn}
-                  onPress={pickImages}
-                >
+                <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
                   <Text style={styles.addImageBtnIcon}>+</Text>
                   <Text style={styles.addImageBtnText}>사진 추가</Text>
                 </TouchableOpacity>
@@ -250,57 +192,83 @@ export default function NewFishScreen({ navigation }) {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>제목 *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, titleFocused && styles.inputFocused]}
             placeholder="상품 제목"
             placeholderTextColor={COLORS.textMuted}
             value={title}
             onChangeText={setTitle}
             returnKeyType="next"
+            onFocus={() => setTitleFocused(true)}
+            onBlur={() => setTitleFocused(false)}
           />
         </View>
 
         {/* Category */}
-        <SelectorRow
-          label="카테고리 *"
-          options={Object.keys(CATEGORIES)}
-          selected={category}
-          onSelect={handleCategorySelect}
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>카테고리 *</Text>
+          <View style={styles.pillRow}>
+            {Object.keys(CATEGORIES).map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.pill, category === cat && styles.pillActive]}
+                onPress={() => handleCategorySelect(cat)}
+              >
+                <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Species */}
         {subcategories.length > 0 && (
-          <SelectorRow
-            label="어종"
-            options={subcategories}
-            selected={species}
-            onSelect={(sp) => setSpecies(species === sp ? '' : sp)}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>어종</Text>
+            <View style={styles.pillRow}>
+              {subcategories.map((sub) => (
+                <TouchableOpacity
+                  key={sub}
+                  style={[styles.pill, species === sub && styles.pillActive]}
+                  onPress={() => setSpecies(species === sub ? '' : sub)}
+                >
+                  <Text style={[styles.pillText, species === sub && styles.pillTextActive]}>
+                    {sub}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
 
         {/* Price */}
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>가격 (원) *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, priceFocused && styles.inputFocused]}
             placeholder="예: 5000"
             placeholderTextColor={COLORS.textMuted}
             value={price}
             onChangeText={setPrice}
             keyboardType="numeric"
             returnKeyType="next"
+            onFocus={() => setPriceFocused(true)}
+            onBlur={() => setPriceFocused(false)}
           />
         </View>
 
         {/* Weight */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>무게</Text>
+          <Text style={styles.inputLabel}>크기 / 무게</Text>
           <TextInput
-            style={styles.input}
-            placeholder="예: 10g"
+            style={[styles.input, weightFocused && styles.inputFocused]}
+            placeholder="예: 10cm, 10g"
             placeholderTextColor={COLORS.textMuted}
             value={weight}
             onChangeText={setWeight}
             returnKeyType="next"
+            onFocus={() => setWeightFocused(true)}
+            onBlur={() => setWeightFocused(false)}
           />
         </View>
 
@@ -308,34 +276,48 @@ export default function NewFishScreen({ navigation }) {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>수량 (마리)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, quantityFocused && styles.inputFocused]}
             placeholder="예: 5"
             placeholderTextColor={COLORS.textMuted}
             value={quantity}
             onChangeText={setQuantity}
             keyboardType="numeric"
             returnKeyType="next"
+            onFocus={() => setQuantityFocused(true)}
+            onBlur={() => setQuantityFocused(false)}
           />
         </View>
 
         {/* Trade Type */}
-        <SelectorRow
-          label="거래 방식 *"
-          options={TRADE_TYPES}
-          selected={tradeType}
-          onSelect={setTradeType}
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>거래 방식 *</Text>
+          <View style={styles.tradeRow}>
+            {TRADE_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[styles.tradePill, tradeType === type && styles.tradePillActive]}
+                onPress={() => setTradeType(type)}
+              >
+                <Text style={[styles.tradePillText, tradeType === type && styles.tradePillTextActive]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Location */}
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>거래 지역</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, locationFocused && styles.inputFocused]}
             placeholder="예: 서울 강남구"
             placeholderTextColor={COLORS.textMuted}
             value={location}
             onChangeText={setLocation}
             returnKeyType="next"
+            onFocus={() => setLocationFocused(true)}
+            onBlur={() => setLocationFocused(false)}
           />
         </View>
 
@@ -343,7 +325,7 @@ export default function NewFishScreen({ navigation }) {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>상품 설명</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, descFocused && styles.inputFocused]}
             placeholder="상품에 대한 자세한 설명을 작성해주세요"
             placeholderTextColor={COLORS.textMuted}
             value={description}
@@ -351,8 +333,14 @@ export default function NewFishScreen({ navigation }) {
             multiline
             numberOfLines={5}
             textAlignVertical="top"
+            onFocus={() => setDescFocused(true)}
+            onBlur={() => setDescFocused(false)}
           />
         </View>
+
+        {error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
@@ -376,7 +364,7 @@ export default function NewFishScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   scrollContent: {
     padding: 16,
@@ -384,46 +372,36 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: FONTS.extrabold,
     color: COLORS.text,
-    marginBottom: 20,
-  },
-  errorBox: {
-    backgroundColor: '#FFEAEA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FFB8B8',
-  },
-  errorText: {
-    color: '#D63B3B',
-    fontSize: 13,
-    lineHeight: 18,
+    marginBottom: 24,
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.textSub,
+    fontWeight: FONTS.semibold,
     marginBottom: 8,
   },
   input: {
-    height: 48,
-    borderWidth: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     fontSize: 15,
     color: COLORS.text,
     backgroundColor: COLORS.surface,
   },
+  inputFocused: {
+    borderColor: COLORS.primary,
+  },
   textArea: {
     height: 120,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
   imageRow: {
     flexDirection: 'row',
@@ -431,14 +409,14 @@ const styles = StyleSheet.create({
   },
   imageThumbnailContainer: {
     position: 'relative',
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
   },
   imageThumbnail: {
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
     borderRadius: 10,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.divider,
   },
   removeImageBtn: {
     position: 'absolute',
@@ -447,7 +425,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#D63B3B',
+    backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -455,7 +433,7 @@ const styles = StyleSheet.create({
   removeImageBtnText: {
     color: '#FFF',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
     lineHeight: 16,
   },
   mainImageBadge: {
@@ -470,54 +448,86 @@ const styles = StyleSheet.create({
   mainImageBadgeText: {
     color: '#FFF',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   addImageBtn: {
-    width: 90,
-    height: 90,
+    width: 80,
+    height: 80,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addImageBtnIcon: {
     fontSize: 24,
-    color: COLORS.textMuted,
+    color: COLORS.primary,
     lineHeight: 28,
   },
   addImageBtnText: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: COLORS.primary,
     marginTop: 2,
+    fontWeight: FONTS.medium,
   },
-  selectorRow: {
+  pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  selectorChip: {
+  pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
   },
-  selectorChipActive: {
+  pillActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  selectorChipText: {
+  pillText: {
     fontSize: 13,
-    color: COLORS.textMuted,
-    fontWeight: '500',
+    color: COLORS.textSub,
+    fontWeight: FONTS.medium,
   },
-  selectorChipTextActive: {
+  pillTextActive: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: FONTS.semibold,
+  },
+  tradeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tradePill: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  tradePillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  tradePillText: {
+    fontSize: 13,
+    color: COLORS.textSub,
+    fontWeight: FONTS.medium,
+  },
+  tradePillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: FONTS.semibold,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    marginBottom: 12,
   },
   submitButton: {
     backgroundColor: COLORS.primary,
@@ -525,7 +535,7 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   submitButtonDisabled: {
     backgroundColor: COLORS.textMuted,
@@ -533,7 +543,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   bottomSpacer: {
     height: 40,

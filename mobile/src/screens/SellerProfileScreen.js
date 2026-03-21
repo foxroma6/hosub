@@ -11,32 +11,22 @@ import {
   Dimensions,
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
+import { COLORS, FONTS } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 36) / 2;
 
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
+}
 
-function AvatarCircle({ name, size = 80 }) {
+function AvatarCircle({ name, size = 72 }) {
   const initial = name ? name.charAt(0).toUpperCase() : '?';
   return (
-    <View
-      style={[
-        styles.avatarCircle,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>
-        {initial}
-      </Text>
+    <View style={[styles.avatarCircle, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>{initial}</Text>
     </View>
   );
 }
@@ -58,7 +48,7 @@ export default function SellerProfileScreen({ route, navigation }) {
       const data = response.data;
       setSeller(data.seller || data.user || data);
       setListings(data.listings || data.fish || []);
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '판매자 정보를 불러오지 못했습니다.');
       navigation.goBack();
     } finally {
@@ -66,17 +56,9 @@ export default function SellerProfileScreen({ route, navigation }) {
     }
   };
 
-  const statusColors = {
-    '판매중': '#22A85A',
-    '예약중': '#E8A020',
-    '판매완료': '#888888',
-  };
-
   const renderFishCard = ({ item }) => {
-    const imageUri =
-      item.images && item.images.length > 0
-        ? `${API_BASE}${item.images[0]}`
-        : null;
+    const rawImage = item.images?.length > 0 ? item.images[0] : null;
+    const imageUri = getImageUri(rawImage);
 
     return (
       <TouchableOpacity
@@ -84,42 +66,22 @@ export default function SellerProfileScreen({ route, navigation }) {
         onPress={() => navigation.navigate('FishDetail', { fish_id: item.id })}
         activeOpacity={0.8}
       >
-        <View style={styles.cardImageContainer}>
-          {imageUri ? (
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.cardImagePlaceholder}>
-              <Text style={styles.cardImagePlaceholderText}>🐠</Text>
-            </View>
-          )}
-          {item.status && item.status !== '판매중' && (
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusColors[item.status] || '#888' },
-              ]}
-            >
-              <Text style={styles.statusBadgeText}>{item.status}</Text>
-            </View>
-          )}
-        </View>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.cardImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.cardImagePlaceholder}>
+            <Text style={styles.cardImagePlaceholderText}>🐠</Text>
+          </View>
+        )}
         <View style={styles.cardBody}>
           {item.species ? (
             <View style={styles.speciesTag}>
               <Text style={styles.speciesTagText}>{item.species}</Text>
             </View>
           ) : null}
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
           <Text style={styles.cardPrice}>
-            {item.price != null
-              ? `${Number(item.price).toLocaleString()}원`
-              : '가격 문의'}
+            {item.price != null ? `${Number(item.price).toLocaleString()}원` : '가격 문의'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -147,30 +109,27 @@ export default function SellerProfileScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            {/* Profile Section */}
             <View style={styles.profileSection}>
-              <AvatarCircle name={seller?.username} size={88} />
+              <AvatarCircle name={seller?.username} size={72} />
               <Text style={styles.username}>{seller?.username || '알 수 없음'}</Text>
               {seller?.bio ? (
                 <Text style={styles.bio}>{seller.bio}</Text>
               ) : (
                 <Text style={styles.bioPlaceholder}>자기소개가 없습니다</Text>
               )}
-
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{listings.length}</Text>
-                  <Text style={styles.statLabel}>전체 등록</Text>
+                  <Text style={styles.statLabel}>총 판매</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{activeListings.length}</Text>
-                  <Text style={styles.statLabel}>판매 중</Text>
+                  <Text style={styles.statLabel}>판매중</Text>
                 </View>
               </View>
             </View>
 
-            {/* Listings Header */}
             <View style={styles.listingsHeader}>
               <Text style={styles.listingsHeaderText}>판매 중인 상품</Text>
               <View style={styles.countBadge}>
@@ -217,60 +176,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   avatarText: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: FONTS.extrabold,
   },
   username: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   bio: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   bioPlaceholder: {
     fontSize: 14,
-    color: COLORS.border,
+    color: COLORS.textMuted,
     fontStyle: 'italic',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.background,
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 32,
-    gap: 32,
+    paddingHorizontal: 40,
+    gap: 40,
     alignItems: 'center',
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: FONTS.extrabold,
     color: COLORS.primary,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
   },
   statDivider: {
     width: 1,
-    height: 30,
+    height: 28,
     backgroundColor: COLORS.border,
   },
   listingsHeader: {
@@ -285,12 +239,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   listingsHeaderText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
   },
   countBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -299,9 +253,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   countBadgeText: {
-    color: '#FFFFFF',
+    color: COLORS.primary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   row: {
     paddingHorizontal: 12,
@@ -313,69 +267,49 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardImageContainer: {
-    position: 'relative',
   },
   cardImage: {
     width: '100%',
     height: CARD_WIDTH * 0.8,
+    backgroundColor: COLORS.divider,
   },
   cardImagePlaceholder: {
     width: '100%',
     height: CARD_WIDTH * 0.8,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardImagePlaceholderText: {
     fontSize: 36,
   },
-  statusBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
   cardBody: {
     padding: 10,
   },
   speciesTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E8F4FF',
-    borderRadius: 6,
-    paddingHorizontal: 7,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     marginBottom: 5,
   },
   speciesTagText: {
     fontSize: 11,
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontWeight: FONTS.medium,
   },
   cardTitle: {
     fontSize: 13,
     color: COLORS.text,
-    fontWeight: '500',
+    fontWeight: FONTS.medium,
     lineHeight: 18,
     marginBottom: 5,
   },
   cardPrice: {
     fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primaryDark,
+    fontWeight: FONTS.bold,
+    color: COLORS.text,
   },
   listContent: {
     paddingBottom: 24,

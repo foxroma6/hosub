@@ -14,16 +14,23 @@ import {
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
+import { COLORS, FONTS } from '../constants/colors';
 
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? '오후' : '오전';
+  const displayHours = hours > 12 ? hours - 12 : hours || 12;
+  return `${period} ${displayHours}:${minutes}`;
+}
 
 export default function ChatScreen({ route, navigation }) {
   const { room_id, fish_title, fish_price, fish_image } = route.params;
@@ -41,13 +48,9 @@ export default function ChatScreen({ route, navigation }) {
       const response = await apiClient.get(`/chat/${room_id}/messages`);
       const newMessages = response.data.messages || response.data || [];
       setMessages(newMessages);
-      if (isInitial) {
-        setLoading(false);
-      }
-    } catch (error) {
-      if (isInitial) {
-        setLoading(false);
-      }
+      if (isInitial) setLoading(false);
+    } catch {
+      if (isInitial) setLoading(false);
     }
   }, [room_id]);
 
@@ -58,9 +61,7 @@ export default function ChatScreen({ route, navigation }) {
     }, 3000);
 
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [fetchMessages]);
 
@@ -85,7 +86,7 @@ export default function ChatScreen({ route, navigation }) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 150);
-    } catch (error) {
+    } catch {
       Alert.alert('오류', '메시지 전송에 실패했습니다.');
       setMessageText(text);
     } finally {
@@ -93,15 +94,7 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : hours || 12;
-    return `${period} ${displayHours}:${minutes}`;
-  };
+  const fishImageUri = getImageUri(fish_image);
 
   const renderMessage = ({ item, index }) => {
     const isMine = item.sender_id === user?.id || item.is_mine;
@@ -111,12 +104,7 @@ export default function ChatScreen({ route, navigation }) {
       (!prevItem || prevItem.sender_id !== item.sender_id || prevItem.is_mine);
 
     return (
-      <View
-        style={[
-          styles.messageBubbleWrapper,
-          isMine ? styles.myBubbleWrapper : styles.theirBubbleWrapper,
-        ]}
-      >
+      <View style={[styles.bubbleWrapper, isMine ? styles.myBubbleWrapper : styles.theirBubbleWrapper]}>
         {!isMine && showSender && (
           <View style={styles.senderAvatar}>
             <Text style={styles.senderAvatarText}>
@@ -132,22 +120,17 @@ export default function ChatScreen({ route, navigation }) {
           )}
           <View style={styles.bubbleRow}>
             {isMine && (
-              <Text style={[styles.timeText, styles.myTimeText]}>
+              <Text style={styles.myTimeText}>
                 {formatTime(item.created_at || item.timestamp)}
               </Text>
             )}
-            <View
-              style={[
-                styles.bubble,
-                isMine ? styles.myBubble : styles.theirBubble,
-              ]}
-            >
+            <View style={[styles.bubble, isMine ? styles.myBubble : styles.theirBubble]}>
               <Text style={isMine ? styles.myBubbleText : styles.theirBubbleText}>
                 {item.message || item.content}
               </Text>
             </View>
             {!isMine && (
-              <Text style={[styles.timeText, styles.theirTimeText]}>
+              <Text style={styles.theirTimeText}>
                 {formatTime(item.created_at || item.timestamp)}
               </Text>
             )}
@@ -159,17 +142,12 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Fish info header */}
       <View style={styles.fishHeader}>
-        {fish_image ? (
-          <Image
-            source={{ uri: `${API_BASE}${fish_image}` }}
-            style={styles.fishHeaderImage}
-            resizeMode="cover"
-          />
+        {fishImageUri ? (
+          <Image source={{ uri: fishImageUri }} style={styles.fishHeaderImage} resizeMode="cover" />
         ) : (
           <View style={styles.fishHeaderImagePlaceholder}>
-            <Text style={{ fontSize: 20 }}>🐠</Text>
+            <Text style={styles.fishHeaderPlaceholderText}>🐠</Text>
           </View>
         )}
         <View style={styles.fishHeaderInfo}>
@@ -184,7 +162,6 @@ export default function ChatScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Messages */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -202,18 +179,13 @@ export default function ChatScreen({ route, navigation }) {
           }}
           ListEmptyComponent={
             <View style={styles.emptyMessages}>
-              <Text style={styles.emptyMessagesText}>
-                첫 메시지를 보내보세요! 👋
-              </Text>
+              <Text style={styles.emptyMessagesText}>첫 메시지를 보내보세요! 👋</Text>
             </View>
           }
         />
       )}
 
-      {/* Input area */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inputArea}>
           <TextInput
             style={styles.input}
@@ -227,10 +199,7 @@ export default function ChatScreen({ route, navigation }) {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!messageText.trim() || sending) && styles.sendButtonDisabled,
-            ]}
+            style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
             onPress={handleSend}
             disabled={!messageText.trim() || sending}
           >
@@ -262,35 +231,35 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   fishHeaderImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.divider,
   },
   fishHeaderImagePlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: COLORS.background,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  },
+  fishHeaderPlaceholderText: {
+    fontSize: 16,
   },
   fishHeaderInfo: {
     flex: 1,
   },
   fishHeaderTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: FONTS.semibold,
     color: COLORS.text,
   },
   fishHeaderPrice: {
     fontSize: 13,
     color: COLORS.primary,
-    fontWeight: '700',
-    marginTop: 2,
+    fontWeight: FONTS.bold,
+    marginTop: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -299,11 +268,11 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
-  messageBubbleWrapper: {
+  bubbleWrapper: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginVertical: 3,
     alignItems: 'flex-end',
   },
   myBubbleWrapper: {
@@ -325,7 +294,7 @@ const styles = StyleSheet.create({
   senderAvatarText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
   avatarSpacer: {
     width: 38,
@@ -335,7 +304,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
     marginBottom: 3,
     marginLeft: 2,
   },
@@ -345,8 +314,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 13,
+    borderRadius: 18,
+    paddingHorizontal: 12,
     paddingVertical: 9,
     maxWidth: '100%',
   },
@@ -355,10 +324,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   theirBubble: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.divider,
     borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   myBubbleText: {
     color: '#FFFFFF',
@@ -370,15 +337,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  timeText: {
-    fontSize: 10,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-  },
   myTimeText: {
+    fontSize: 11,
+    color: COLORS.textSub,
+    marginBottom: 2,
     textAlign: 'right',
   },
   theirTimeText: {
+    fontSize: 11,
+    color: COLORS.textSub,
+    marginBottom: 2,
     textAlign: 'left',
   },
   emptyMessages: {
@@ -428,7 +396,7 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
     fontSize: 14,
   },
 });

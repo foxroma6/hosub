@@ -10,31 +10,34 @@ import {
   RefreshControl,
 } from 'react-native';
 import apiClient, { API_BASE } from '../api/client';
+import { COLORS, FONTS } from '../constants/colors';
 
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+function getImageUri(imageUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${API_BASE}${imageUrl}`;
+}
 
-function AvatarCircle({ name, size = 44 }) {
-  const initial = name ? name.charAt(0).toUpperCase() : '?';
-  return (
-    <View
-      style={[
-        styles.avatarCircle,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>
-        {initial}
-      </Text>
-    </View>
-  );
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const period = hours >= 12 ? '오후' : '오전';
+    const displayHours = hours > 12 ? hours - 12 : hours || 12;
+    return `${period} ${displayHours}:${minutes}`;
+  } else if (diffDays === 1) {
+    return '어제';
+  } else if (diffDays < 7) {
+    return `${diffDays}일 전`;
+  } else {
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  }
 }
 
 export default function ChatListScreen({ navigation }) {
@@ -46,7 +49,7 @@ export default function ChatListScreen({ navigation }) {
     try {
       const response = await apiClient.get('/chat');
       setRooms(response.data.rooms || response.data || []);
-    } catch (error) {
+    } catch {
       setRooms([]);
     } finally {
       setLoading(false);
@@ -63,36 +66,12 @@ export default function ChatListScreen({ navigation }) {
     fetchRooms();
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      const hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const period = hours >= 12 ? '오후' : '오전';
-      const displayHours = hours > 12 ? hours - 12 : hours || 12;
-      return `${period} ${displayHours}:${minutes}`;
-    } else if (diffDays === 1) {
-      return '어제';
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else {
-      return `${date.getMonth() + 1}/${date.getDate()}`;
-    }
-  };
-
   const renderRoom = ({ item }) => {
-    const partnerName =
-      item.partner_username || item.partner?.username || '알 수 없음';
+    const partnerName = item.partner_username || item.partner?.username || '알 수 없음';
     const fishTitle = item.fish_title || item.fish?.title || '상품';
-    const fishImage = item.fish_image || item.fish?.images?.[0];
-    const lastMessage = item.last_message || '대화를 시작해보세요';
+    const rawImage = item.fish_image || item.fish?.images?.[0];
+    const fishImage = getImageUri(rawImage);
     const lastMessageTime = item.last_message_at || item.updated_at;
-    const unreadCount = item.unread_count || 0;
 
     return (
       <TouchableOpacity
@@ -102,25 +81,22 @@ export default function ChatListScreen({ navigation }) {
             room_id: item.id,
             fish_title: fishTitle,
             fish_price: item.fish_price || item.fish?.price,
-            fish_image: fishImage,
+            fish_image: rawImage,
           })
         }
-        activeOpacity={0.75}
+        activeOpacity={0.7}
       >
-        <View style={styles.roomLeft}>
-          {fishImage ? (
-            <Image
-              source={{ uri: `${API_BASE}${fishImage}` }}
-              style={styles.fishThumbnail}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.fishThumbnailPlaceholder}>
-              <Text style={styles.fishThumbnailPlaceholderText}>🐠</Text>
-            </View>
-          )}
-          <AvatarCircle name={partnerName} size={40} />
-        </View>
+        {fishImage ? (
+          <Image
+            source={{ uri: fishImage }}
+            style={styles.fishThumbnail}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.fishThumbnailPlaceholder}>
+            <Text style={styles.fishThumbnailPlaceholderText}>🐠</Text>
+          </View>
+        )}
 
         <View style={styles.roomBody}>
           <View style={styles.roomTopRow}>
@@ -132,18 +108,6 @@ export default function ChatListScreen({ navigation }) {
           <Text style={styles.fishTitleText} numberOfLines={1}>
             {fishTitle}
           </Text>
-          <View style={styles.lastMsgRow}>
-            <Text style={styles.lastMessageText} numberOfLines={1}>
-              {lastMessage}
-            </Text>
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </View>
         </View>
       </TouchableOpacity>
     );
@@ -167,14 +131,10 @@ export default function ChatListScreen({ navigation }) {
         data={rooms}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderRoom}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💬</Text>
-            <Text style={styles.emptyTitle}>채팅 내역이 없습니다</Text>
-            <Text style={styles.emptySubText}>
-              상품을 둘러보고 판매자에게 문의해보세요
-            </Text>
+            <Text style={styles.emptyText}>진행 중인 채팅이 없습니다</Text>
           </View>
         }
         refreshControl={
@@ -194,7 +154,7 @@ export default function ChatListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   loadingContainer: {
     flex: 1,
@@ -211,62 +171,35 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
   },
   roomItem: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
     gap: 12,
   },
-  roomLeft: {
-    position: 'relative',
+  fishThumbnail: {
     width: 56,
     height: 56,
-  },
-  fishThumbnail: {
-    width: 44,
-    height: 44,
     borderRadius: 8,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.divider,
   },
   fishThumbnailPlaceholder: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
     borderRadius: 8,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   fishThumbnailPlaceholderText: {
-    fontSize: 22,
-  },
-  avatarCircle: {
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    fontSize: 24,
   },
   roomBody: {
     flex: 1,
@@ -275,73 +208,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   partnerName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
     flex: 1,
   },
   timeText: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
     marginLeft: 8,
   },
   fishTitleText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    marginBottom: 3,
-  },
-  lastMsgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  lastMessageText: {
     fontSize: 13,
-    color: COLORS.textMuted,
-    flex: 1,
-  },
-  unreadBadge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-    marginLeft: 8,
-  },
-  unreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginLeft: 84,
+    color: COLORS.textSub,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 32,
+    paddingTop: 100,
   },
   emptyIcon: {
     fontSize: 52,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  emptySubText: {
-    fontSize: 14,
+  emptyText: {
+    fontSize: 15,
     color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

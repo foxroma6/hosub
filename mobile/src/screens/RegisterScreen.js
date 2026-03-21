@@ -11,16 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-
-const COLORS = {
-  primary: '#4A90D9',
-  primaryDark: '#2E75BF',
-  background: '#EDF4FB',
-  surface: '#FFFFFF',
-  text: '#1E3A54',
-  textMuted: '#7A9BB5',
-  border: '#B8D8F0',
-};
+import { COLORS, FONTS } from '../constants/colors';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useContext(AuthContext);
@@ -30,6 +21,9 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const handleRegister = async () => {
     if (!username.trim()) {
@@ -65,17 +59,17 @@ export default function RegisterScreen({ navigation }) {
   if (success) {
     return (
       <View style={styles.successContainer}>
-        <Text style={styles.successIcon}>✉️</Text>
-        <Text style={styles.successTitle}>이메일 인증을 확인해주세요!</Text>
-        <Text style={styles.successMessage}>
-          {email} 로 인증 메일을 발송했습니다.{'\n'}
-          메일함을 확인하고 인증 링크를 클릭해주세요.
-        </Text>
+        <View style={styles.successIconCircle}>
+          <Text style={styles.successIconText}>✓</Text>
+        </View>
+        <Text style={styles.successTitle}>인증 메일을 발송했습니다</Text>
+        <Text style={styles.successEmail}>{email}</Text>
+        <Text style={styles.successDesc}>받은 편지함을 확인해주세요</Text>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.loginButton}
           onPress={() => navigation.navigate('Login')}
         >
-          <Text style={styles.backButtonText}>로그인 화면으로</Text>
+          <Text style={styles.loginButtonText}>로그인하기</Text>
         </TouchableOpacity>
       </View>
     );
@@ -91,38 +85,32 @@ export default function RegisterScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoSection}>
-          <Text style={styles.logoText}>AquaPet</Text>
-          <Text style={styles.logoSubText}>새 계정 만들기</Text>
+          <Text style={styles.titleText}>회원가입</Text>
+          <Text style={styles.logoSubText}>AquaPet 계정을 만들어보세요</Text>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>회원가입</Text>
-
-          {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
+        <View style={styles.formArea}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>닉네임</Text>
             <TextInput
-              style={styles.input}
-              placeholder="사용할 닉네임"
+              style={[styles.input, usernameFocused && styles.inputFocused]}
+              placeholder="사용할 닉네임을 입력해주세요"
               placeholderTextColor={COLORS.textMuted}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="next"
+              onFocus={() => setUsernameFocused(true)}
+              onBlur={() => setUsernameFocused(false)}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>이메일</Text>
             <TextInput
-              style={styles.input}
-              placeholder="이메일 주소"
+              style={[styles.input, emailFocused && styles.inputFocused]}
+              placeholder="이메일 주소를 입력해주세요"
               placeholderTextColor={COLORS.textMuted}
               value={email}
               onChangeText={setEmail}
@@ -130,22 +118,30 @@ export default function RegisterScreen({ navigation }) {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="next"
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>비밀번호</Text>
             <TextInput
-              style={styles.input}
-              placeholder="6자 이상"
+              style={[styles.input, passwordFocused && styles.inputFocused]}
+              placeholder="6자 이상 입력해주세요"
               placeholderTextColor={COLORS.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               returnKeyType="done"
               onSubmitEditing={handleRegister}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
             />
           </View>
+
+          {error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.registerButton, loading && styles.registerButtonDisabled]}
@@ -156,14 +152,15 @@ export default function RegisterScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.registerButtonText}>가입하기</Text>
+              <Text style={styles.registerButtonText}>인증 메일 받기</Text>
             )}
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.loginSection}>
-          <Text style={styles.loginPrompt}>이미 계정이 있으신가요?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <TouchableOpacity
+            style={styles.loginLinkRow}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.loginPrompt}>이미 계정이 있으신가요? </Text>
             <Text style={styles.loginLink}>로그인</Text>
           </TouchableOpacity>
         </View>
@@ -175,83 +172,64 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginTop: 80,
   },
-  logoText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: COLORS.primary,
-    letterSpacing: 1,
+  titleText: {
+    fontSize: 28,
+    fontWeight: FONTS.bold,
+    color: COLORS.text,
     marginBottom: 6,
   },
   logoSubText: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
   },
-  formCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 20,
-  },
-  errorBox: {
-    backgroundColor: '#FFEAEA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FFB8B8',
-  },
-  errorText: {
-    color: '#D63B3B',
-    fontSize: 13,
-    lineHeight: 18,
+  formArea: {
+    marginTop: 48,
+    paddingHorizontal: 24,
   },
   inputGroup: {
     marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.textSub,
+    fontWeight: FONTS.semibold,
     marginBottom: 6,
   },
   input: {
-    height: 48,
-    borderWidth: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     fontSize: 15,
     color: COLORS.text,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
+  },
+  inputFocused: {
+    borderColor: COLORS.primary,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    marginBottom: 12,
+    marginTop: -4,
   },
   registerButton: {
+    marginTop: 24,
+    height: 52,
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    height: 50,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
   },
   registerButtonDisabled: {
     backgroundColor: COLORS.textMuted,
@@ -259,59 +237,76 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
-  loginSection: {
+  loginLinkRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    gap: 8,
+    marginTop: 16,
   },
   loginPrompt: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
   },
   loginLink: {
     fontSize: 14,
-    fontWeight: '700',
     color: COLORS.primary,
+    fontWeight: FONTS.semibold,
     textDecorationLine: 'underline',
   },
   successContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
-    padding: 32,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 32,
   },
-  successIcon: {
-    fontSize: 64,
+  successIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 24,
   },
+  successIconText: {
+    fontSize: 36,
+    color: COLORS.primary,
+    fontWeight: FONTS.bold,
+  },
   successTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 16,
+    marginBottom: 10,
     textAlign: 'center',
   },
-  successMessage: {
+  successEmail: {
     fontSize: 15,
-    color: COLORS.textMuted,
+    color: COLORS.primary,
+    fontWeight: FONTS.semibold,
+    marginBottom: 6,
     textAlign: 'center',
-    lineHeight: 24,
+  },
+  successDesc: {
+    fontSize: 14,
+    color: COLORS.textSub,
+    textAlign: 'center',
     marginBottom: 32,
   },
-  backButton: {
+  loginButton: {
+    height: 52,
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 48,
   },
-  backButtonText: {
+  loginButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: FONTS.bold,
   },
 });
