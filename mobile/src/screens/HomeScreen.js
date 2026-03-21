@@ -27,9 +27,9 @@ const ALL_CATEGORIES = ['전체', ...Object.keys(CATEGORIES)];
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
   const now = new Date();
-  const diffMs = now - date;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return '오늘';
   if (diffDays === 1) return '어제';
   if (diffDays < 7) return `${diffDays}일 전`;
@@ -111,10 +111,11 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.itemPrice}>
             {item.price != null ? `${Number(item.price).toLocaleString()}원` : '가격 문의'}
           </Text>
-          <Text style={styles.itemMeta}>
-            {item.location ? `${item.location} · ` : ''}
-            {formatDate(item.created_at)}
-          </Text>
+          {(item.location || formatDate(item.created_at)) ? (
+            <Text style={styles.itemMeta}>
+              {[item.location, formatDate(item.created_at)].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     );

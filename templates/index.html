@@ -51,10 +51,13 @@
             <div class="fish-species">{{ fish.species }}</div>
             <h3 class="fish-title">{{ fish.title }}</h3>
             <div class="fish-price">{{ "{:,}".format(fish.price) }}원</div>
+            {% if fish.location or fish.created_at %}
             <div class="fish-meta">
-              {% if fish.location %}<span>📍 {{ fish.location }}</span>{% endif %}
-              <span>{{ fish.created_at.strftime('%m/%d') }}</span>
+              {% if fish.location %}<span>{{ fish.location }}</span>{% endif %}
+              {% if fish.location and fish.created_at %}<span class="meta-dot">·</span>{% endif %}
+              {% if fish.created_at %}<span>{{ fish.created_at.strftime('%m/%d') }}</span>{% endif %}
             </div>
+            {% endif %}
           </div>
         </a>
       {% endfor %}
