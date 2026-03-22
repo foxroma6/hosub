@@ -21,13 +21,10 @@ cloudinary.config(
 
 app = Flask(__name__)
 
-CATEGORIES = {
-    '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
-    '해수어 & 산호': [],
-    '수생 무척추동물': ['새우', '가재'],
-    '파충류': ['거북이', '개구리'],
-    '수초 & 식물': [],
-}
+FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물']
+GENDERS = ['암', '수', '혼합', '없음']
+REGIONS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+           '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fish-market-secret-2024')
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///fish_market.db')
@@ -122,6 +119,7 @@ class Fish(db.Model):
     price = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     image_url = db.Column(db.String(300))
+    gender = db.Column(db.String(10), default='없음')
     weight = db.Column(db.String(50))
     quantity = db.Column(db.String(50))
     trade_type = db.Column(db.String(20), default='직거래')
@@ -172,15 +170,24 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    category_filter = request.args.get('category', '')
-    species_filter = request.args.get('species', '')
-    search = request.args.get('search', '')
+    fish_type   = request.args.get('fish_type', '')
+    gender      = request.args.get('gender', '')
+    price_min   = request.args.get('price_min', '')
+    price_max   = request.args.get('price_max', '')
+    region      = request.args.get('region', '')
+    search      = request.args.get('search', '')
 
     query = Fish.query.filter_by(status='판매중')
-    if category_filter:
-        query = query.filter(Fish.category == category_filter)
-    if species_filter:
-        query = query.filter(Fish.species == species_filter)
+    if fish_type:
+        query = query.filter(Fish.category == fish_type)
+    if gender:
+        query = query.filter(Fish.gender == gender)
+    if price_min:
+        query = query.filter(Fish.price >= int(price_min))
+    if price_max:
+        query = query.filter(Fish.price <= int(price_max))
+    if region:
+        query = query.filter(Fish.location.contains(region))
     if search:
         query = query.filter(
             Fish.title.contains(search) | Fish.species.contains(search)
@@ -188,9 +195,11 @@ def index():
 
     fish_list = query.order_by(Fish.created_at.desc()).all()
 
-    return render_template('index.html', fish_list=fish_list, categories=CATEGORIES,
-                           selected_category=category_filter, selected_species=species_filter,
-                           search=search)
+    return render_template('index.html', fish_list=fish_list,
+                           fish_types=FISH_TYPES, genders=GENDERS, regions=REGIONS,
+                           fish_type=fish_type, gender=gender,
+                           price_min=price_min, price_max=price_max,
+                           region=region, search=search)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -305,7 +314,8 @@ def fish_new():
             seller_id=current_user.id,
             title=request.form.get('title'),
             category=request.form.get('category'),
-            species=request.form.get('species'),
+            species=request.form.get('species', ''),
+            gender=request.form.get('gender', '없음'),
             price=int(request.form.get('price', 0)),
             description=request.form.get('description'),
             weight=request.form.get('weight'),
@@ -328,7 +338,7 @@ def fish_new():
         db.session.commit()
         flash('판매 등록이 완료되었습니다!', 'success')
         return redirect(url_for('fish_detail', fish_id=fish.id))
-    return render_template('fish_new.html', categories=CATEGORIES)
+    return render_template('fish_new.html', fish_types=FISH_TYPES, genders=GENDERS, regions=REGIONS)
 
 
 @app.route('/fish/<int:fish_id>')
@@ -605,6 +615,27 @@ def run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ADD COLUMN gender VARCHAR(10) DEFAULT '없음'"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ALTER COLUMN species DROP NOT NULL"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                "ALTER TABLE fish ALTER COLUMN species SET DEFAULT ''"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def seed_fish_images():
@@ -661,6 +692,7 @@ def fish_to_dict(f, detail=False):
         'price': f.price,
         'image_url': imgs[0] if imgs else None,
         'images': imgs,
+        'gender': f.gender or '없음',
         'weight': f.weight or '',
         'quantity': f.quantity or '',
         'trade_type': f.trade_type or '',
@@ -696,7 +728,7 @@ def room_to_dict(r, user_id):
 
 @app.route('/api/categories')
 def api_categories():
-    return jsonify(CATEGORIES)
+    return jsonify({'fish_types': FISH_TYPES, 'genders': GENDERS, 'regions': REGIONS})
 
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -736,14 +768,23 @@ def api_register():
 
 @app.route('/api/fish')
 def api_fish_list():
-    category_filter = request.args.get('category', '')
-    species_filter  = request.args.get('species', '')
-    search          = request.args.get('search', '')
+    fish_type  = request.args.get('fish_type', '')
+    gender     = request.args.get('gender', '')
+    price_min  = request.args.get('price_min', '')
+    price_max  = request.args.get('price_max', '')
+    region     = request.args.get('region', '')
+    search     = request.args.get('search', '')
     query = Fish.query.filter_by(status='판매중')
-    if category_filter:
-        query = query.filter(Fish.category == category_filter)
-    if species_filter:
-        query = query.filter(Fish.species == species_filter)
+    if fish_type:
+        query = query.filter(Fish.category == fish_type)
+    if gender:
+        query = query.filter(Fish.gender == gender)
+    if price_min:
+        query = query.filter(Fish.price >= int(price_min))
+    if price_max:
+        query = query.filter(Fish.price <= int(price_max))
+    if region:
+        query = query.filter(Fish.location.contains(region))
     if search:
         query = query.filter(Fish.title.contains(search) | Fish.species.contains(search))
     fish_list = query.order_by(Fish.created_at.desc()).all()
@@ -764,7 +805,8 @@ def api_fish_new():
         seller_id=user_id,
         title=request.form.get('title'),
         category=request.form.get('category'),
-        species=request.form.get('species'),
+        species=request.form.get('species', ''),
+        gender=request.form.get('gender', '없음'),
         price=int(request.form.get('price', 0)),
         description=request.form.get('description', ''),
         weight=request.form.get('weight', ''),

@@ -57,6 +57,12 @@
           <span class="info-label">가격</span>
           <span class="info-value price-value">{{ "{:,}".format(fish.price) }}원</span>
         </div>
+        {% if fish.gender and fish.gender != '없음' %}
+        <div class="info-row">
+          <span class="info-label">성별</span>
+          <span class="info-value">{{ fish.gender }}</span>
+        </div>
+        {% endif %}
         {% if fish.weight %}
         <div class="info-row">
           <span class="info-label">크기</span>

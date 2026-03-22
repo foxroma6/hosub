@@ -219,6 +219,7 @@ export default function FishDetailScreen({ route, navigation }) {
         {/* 상품 정보 */}
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>상품 정보</Text>
+          <InfoRow label="성별" value={fish.gender && fish.gender !== '없음' ? fish.gender : null} />
           <InfoRow label="크기" value={fish.weight} />
           <InfoRow label="수량" value={fish.quantity ? `${fish.quantity}마리` : null} />
           <InfoRow label="판매방법" value={fish.trade_type || fish.tradeType} />

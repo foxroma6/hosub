@@ -17,14 +17,8 @@ import apiClient from '../api/client';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
 
-const CATEGORIES = {
-  '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
-  '해수어 & 산호': [],
-  '수생 무척추동물': ['새우', '가재'],
-  '파충류': ['거북이', '개구리'],
-  '수초 & 식물': [],
-};
-
+const FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물'];
+const GENDERS    = ['암', '수', '혼합', '없음'];
 const TRADE_TYPES = ['직거래', '택배', '모두 가능'];
 
 export default function NewFishScreen({ navigation }) {
@@ -34,6 +28,7 @@ export default function NewFishScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [species, setSpecies] = useState('');
+  const [gender, setGender] = useState('없음');
   const [price, setPrice] = useState('');
   const [weight, setWeight] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -75,7 +70,6 @@ export default function NewFishScreen({ navigation }) {
 
   const handleCategorySelect = (cat) => {
     setCategory(cat);
-    setSpecies('');
   };
 
   const handleSubmit = async () => {
@@ -91,6 +85,7 @@ export default function NewFishScreen({ navigation }) {
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('category', category);
+      formData.append('gender', gender);
       if (species) formData.append('species', species);
       formData.append('price', price);
       if (weight) formData.append('weight', weight);
@@ -121,6 +116,7 @@ export default function NewFishScreen({ navigation }) {
             setTitle('');
             setCategory('');
             setSpecies('');
+            setGender('없음');
             setPrice('');
             setWeight('');
             setQuantity('');
@@ -142,8 +138,6 @@ export default function NewFishScreen({ navigation }) {
       setLoading(false);
     }
   };
-
-  const subcategories = category ? CATEGORIES[category] || [] : [];
 
   return (
     <KeyboardAvoidingView
@@ -203,43 +197,54 @@ export default function NewFishScreen({ navigation }) {
           />
         </View>
 
-        {/* Category */}
+        {/* Fish Type */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>카테고리 *</Text>
+          <Text style={styles.inputLabel}>어종 *</Text>
           <View style={styles.pillRow}>
-            {Object.keys(CATEGORIES).map((cat) => (
+            {FISH_TYPES.map((ft) => (
               <TouchableOpacity
-                key={cat}
-                style={[styles.pill, category === cat && styles.pillActive]}
-                onPress={() => handleCategorySelect(cat)}
+                key={ft}
+                style={[styles.pill, category === ft && styles.pillActive]}
+                onPress={() => handleCategorySelect(ft)}
               >
-                <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
-                  {cat}
+                <Text style={[styles.pillText, category === ft && styles.pillTextActive]}>
+                  {ft}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* Species */}
-        {subcategories.length > 0 && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>어종</Text>
-            <View style={styles.pillRow}>
-              {subcategories.map((sub) => (
-                <TouchableOpacity
-                  key={sub}
-                  style={[styles.pill, species === sub && styles.pillActive]}
-                  onPress={() => setSpecies(species === sub ? '' : sub)}
-                >
-                  <Text style={[styles.pillText, species === sub && styles.pillTextActive]}>
-                    {sub}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* Gender */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>성별</Text>
+          <View style={styles.pillRow}>
+            {GENDERS.map((g) => (
+              <TouchableOpacity
+                key={g}
+                style={[styles.pill, gender === g && styles.pillActive]}
+                onPress={() => setGender(g)}
+              >
+                <Text style={[styles.pillText, gender === g && styles.pillTextActive]}>
+                  {g}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+        </View>
+
+        {/* Species (free text) */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>세부 어종 <Text style={{ color: COLORS.textMuted, fontWeight: '400' }}>(선택)</Text></Text>
+          <TextInput
+            style={styles.input}
+            placeholder="예) 구피, 베타, 네온테트라"
+            placeholderTextColor={COLORS.textMuted}
+            value={species}
+            onChangeText={setSpecies}
+            returnKeyType="next"
+          />
+        </View>
 
         {/* Price */}
         <View style={styles.inputGroup}>

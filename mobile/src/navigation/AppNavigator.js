@@ -1,7 +1,8 @@
 import React, { useContext } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
@@ -18,14 +19,6 @@ import SellerProfileScreen from '../screens/SellerProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-function AddTabIcon({ focused }) {
-  return (
-    <View style={[tabStyles.addIcon, focused && tabStyles.addIconFocused]}>
-      <Text style={[tabStyles.addIconText, focused && tabStyles.addIconTextFocused]}>+</Text>
-    </View>
-  );
-}
 
 function AuthGuardWrapper({ navigation }) {
   React.useEffect(() => {
@@ -69,7 +62,7 @@ function MainTabs() {
         options={{
           tabBarLabel: '홈',
           tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22, color }}>🏠</Text>
+            <Ionicons name="home-outline" size={26} color={color} />
           ),
         }}
       />
@@ -77,7 +70,9 @@ function MainTabs() {
         name="NewFish"
         options={{
           tabBarLabel: '등록',
-          tabBarIcon: ({ focused }) => <AddTabIcon focused={focused} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="add-circle-outline" size={26} color={color} />
+          ),
         }}
       >
         {(props) =>
@@ -93,7 +88,7 @@ function MainTabs() {
         options={{
           tabBarLabel: '채팅',
           tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22, color }}>💬</Text>
+            <Ionicons name="chatbubble-outline" size={26} color={color} />
           ),
         }}
       >
@@ -110,7 +105,7 @@ function MainTabs() {
         options={{
           tabBarLabel: 'MY',
           tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 22, color }}>👤</Text>
+            <Ionicons name="person-outline" size={26} color={color} />
           ),
         }}
       >
@@ -185,29 +180,6 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
-
-const tabStyles = StyleSheet.create({
-  addIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addIconFocused: {
-    backgroundColor: COLORS.primary,
-  },
-  addIconText: {
-    fontSize: 20,
-    color: COLORS.primary,
-    fontWeight: FONTS.bold,
-    lineHeight: 24,
-  },
-  addIconTextFocused: {
-    color: '#FFFFFF',
-  },
-});
 
 const styles = StyleSheet.create({
   loadingContainer: {

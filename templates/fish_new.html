@@ -14,20 +14,27 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>대분류 *</label>
-          <select name="category" id="categorySelect" required onchange="updateSubcategory()">
-            <option value="">카테고리 선택</option>
-            {% for cat in categories %}
-              <option value="{{ cat }}">{{ cat }}</option>
+          <label>어종 *</label>
+          <select name="category" required>
+            <option value="">어종 선택</option>
+            {% for ft in fish_types %}
+              <option value="{{ ft }}">{{ ft }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
-          <label>소분류 *</label>
-          <select name="species" id="speciesSelect" required>
-            <option value="">대분류를 먼저 선택하세요</option>
+          <label>성별</label>
+          <select name="gender">
+            {% for g in genders %}
+              <option value="{{ g }}">{{ g }}</option>
+            {% endfor %}
           </select>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>세부 어종 <span style="color:var(--text-muted); font-weight:400;">(선택)</span></label>
+        <input type="text" name="species" placeholder="예) 구피, 베타, 네온테트라">
       </div>
 
       <div class="form-row">
@@ -56,9 +63,16 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>거래 지역</label>
-        <input type="text" name="location" placeholder="예) 서울 강남구, 부산 해운대구">
+      <div class="form-row">
+        <div class="form-group">
+          <label>지역 (시/도)</label>
+          <select name="location">
+            <option value="">선택 안 함</option>
+            {% for r in regions %}
+              <option value="{{ r }}">{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
       <div class="form-group">
@@ -86,30 +100,6 @@
 </div>
 
 <script>
-const categories = {{ categories | tojson }};
-
-function updateSubcategory() {
-  const cat = document.getElementById('categorySelect').value;
-  const speciesSelect = document.getElementById('speciesSelect');
-  speciesSelect.innerHTML = '';
-
-  const subs = categories[cat] || [];
-  if (subs.length > 0) {
-    subs.forEach(sub => {
-      const opt = document.createElement('option');
-      opt.value = sub;
-      opt.textContent = sub;
-      speciesSelect.appendChild(opt);
-    });
-  } else {
-    // 소분류 없는 카테고리는 대분류 이름 그대로 사용
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    speciesSelect.appendChild(opt);
-  }
-}
-
 function previewImages(input) {
   const container = document.getElementById('previewContainer');
   container.innerHTML = '';

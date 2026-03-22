@@ -3,33 +3,51 @@
 
 {% block content %}
 <section class="hero">
-  <form class="search-bar" method="get" action="{{ url_for('index') }}">
+  <form class="search-bar" method="get" action="{{ url_for('index') }}" id="filterForm">
     <input type="text" name="search" value="{{ search }}" placeholder="검색어를 입력해주세요">
     <button type="submit">검색</button>
   </form>
 </section>
 
 <div class="container">
-  <!-- 대분류 필터 -->
-  <div class="filter-bar">
-    <a href="{{ url_for('index') }}" class="filter-tag {% if not selected_category %}active{% endif %}">전체</a>
-    {% for cat in categories %}
-      <a href="{{ url_for('index', category=cat) }}"
-         class="filter-tag {% if selected_category == cat %}active{% endif %}">{{ cat }}</a>
-    {% endfor %}
-  </div>
+  <!-- 필터 바 -->
+  <form method="get" action="{{ url_for('index') }}" id="filterForm2">
+    {% if search %}<input type="hidden" name="search" value="{{ search }}">{% endif %}
+    <div class="filter-bar filter-dropdown-bar">
 
-  <!-- 소분류 필터 (대분류 선택 시 표시) -->
-  {% if selected_category and categories[selected_category] %}
-  <div class="filter-bar filter-sub">
-    <a href="{{ url_for('index', category=selected_category) }}"
-       class="filter-tag {% if not selected_species %}active{% endif %}">전체</a>
-    {% for sub in categories[selected_category] %}
-      <a href="{{ url_for('index', category=selected_category, species=sub) }}"
-         class="filter-tag {% if selected_species == sub %}active{% endif %}">{{ sub }}</a>
-    {% endfor %}
-  </div>
-  {% endif %}
+      <select name="fish_type" class="filter-select {% if fish_type %}active{% endif %}" onchange="this.form.submit()">
+        <option value="">어종 전체</option>
+        {% for ft in fish_types %}
+          <option value="{{ ft }}" {% if fish_type == ft %}selected{% endif %}>{{ ft }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="gender" class="filter-select {% if gender %}active{% endif %}" onchange="this.form.submit()">
+        <option value="">성별 전체</option>
+        {% for g in genders %}
+          <option value="{{ g }}" {% if gender == g %}selected{% endif %}>{{ g }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="region" class="filter-select {% if region %}active{% endif %}" onchange="this.form.submit()">
+        <option value="">지역 전체</option>
+        {% for r in regions %}
+          <option value="{{ r }}" {% if region == r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="price-range-group">
+        <input type="number" name="price_min" value="{{ price_min }}" placeholder="최소가격" class="filter-price-input" min="0">
+        <span class="price-range-sep">~</span>
+        <input type="number" name="price_max" value="{{ price_max }}" placeholder="최대가격" class="filter-price-input" min="0">
+        <button type="submit" class="filter-price-btn">적용</button>
+      </div>
+
+      {% if fish_type or gender or region or price_min or price_max %}
+        <a href="{{ url_for('index') }}{% if search %}?search={{ search }}{% endif %}" class="filter-reset">초기화</a>
+      {% endif %}
+    </div>
+  </form>
 
   {% if fish_list %}
     <div class="fish-grid">

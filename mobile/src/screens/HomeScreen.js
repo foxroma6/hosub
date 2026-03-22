@@ -9,20 +9,18 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  Modal,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient, { API_BASE } from '../api/client';
 import { COLORS, FONTS } from '../constants/colors';
 
-const CATEGORIES = {
-  '담수어': ['구피', '코리·플래코', '디스커스', '베타', '중·대형어', '기타 열대어'],
-  '해수어 & 산호': [],
-  '수생 무척추동물': ['새우', '가재'],
-  '파충류': ['거북이', '개구리'],
-  '수초 & 식물': [],
-};
-
-const ALL_CATEGORIES = ['전체', ...Object.keys(CATEGORIES)];
+const FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물'];
+const GENDERS    = ['암', '수', '혼합', '없음'];
+const REGIONS    = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+                    '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -42,21 +40,122 @@ function getImageUri(imageUrl) {
   return `${API_BASE}${imageUrl}`;
 }
 
+// 드롭다운 선택 모달
+function PickerModal({ visible, title, options, selected, onSelect, onClose, allowClear }) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={modal.overlay} activeOpacity={1} onPress={onClose} />
+      <SafeAreaView style={modal.sheet}>
+        <View style={modal.header}>
+          <Text style={modal.headerTitle}>{title}</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        <ScrollView>
+          {allowClear && (
+            <TouchableOpacity
+              style={[modal.option, !selected && modal.optionActive]}
+              onPress={() => { onSelect(''); onClose(); }}
+            >
+              <Text style={[modal.optionText, !selected && modal.optionTextActive]}>전체</Text>
+              {!selected && <Ionicons name="checkmark" size={18} color={COLORS.primary} />}
+            </TouchableOpacity>
+          )}
+          {options.map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              style={[modal.option, selected === opt && modal.optionActive]}
+              onPress={() => { onSelect(opt); onClose(); }}
+            >
+              <Text style={[modal.optionText, selected === opt && modal.optionTextActive]}>{opt}</Text>
+              {selected === opt && <Ionicons name="checkmark" size={18} color={COLORS.primary} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// 가격 범위 모달
+function PriceModal({ visible, priceMin, priceMax, onApply, onClose }) {
+  const [min, setMin] = useState(priceMin);
+  const [max, setMax] = useState(priceMax);
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={modal.overlay} activeOpacity={1} onPress={onClose} />
+      <SafeAreaView style={modal.sheet}>
+        <View style={modal.header}>
+          <Text style={modal.headerTitle}>가격 범위</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={modal.priceBody}>
+          <View style={modal.priceRow}>
+            <TextInput
+              style={modal.priceInput}
+              placeholder="최소 가격"
+              placeholderTextColor={COLORS.textMuted}
+              value={min}
+              onChangeText={setMin}
+              keyboardType="numeric"
+            />
+            <Text style={modal.priceSep}>~</Text>
+            <TextInput
+              style={modal.priceInput}
+              placeholder="최대 가격"
+              placeholderTextColor={COLORS.textMuted}
+              value={max}
+              onChangeText={setMax}
+              keyboardType="numeric"
+            />
+          </View>
+          <TouchableOpacity
+            style={modal.applyBtn}
+            onPress={() => { onApply(min, max); onClose(); }}
+          >
+            <Text style={modal.applyBtnText}>적용하기</Text>
+          </TouchableOpacity>
+          {(priceMin || priceMax) && (
+            <TouchableOpacity
+              style={modal.clearBtn}
+              onPress={() => { onApply('', ''); onClose(); }}
+            >
+              <Text style={modal.clearBtnText}>가격 초기화</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const [fish, setFish] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [selectedSpecies, setSelectedSpecies] = useState('');
+
+  const [fishType, setFishType] = useState('');
+  const [gender, setGender] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [region, setRegion] = useState('');
+
+  const [openModal, setOpenModal] = useState(null); // 'fishType' | 'gender' | 'price' | 'region'
 
   const fetchFish = useCallback(async () => {
     try {
       const params = {};
-      if (selectedCategory && selectedCategory !== '전체') params.category = selectedCategory;
-      if (selectedSpecies) params.species = selectedSpecies;
-      if (searchQuery) params.search = searchQuery;
+      if (fishType)    params.fish_type  = fishType;
+      if (gender)      params.gender     = gender;
+      if (priceMin)    params.price_min  = priceMin;
+      if (priceMax)    params.price_max  = priceMax;
+      if (region)      params.region     = region;
+      if (searchQuery) params.search     = searchQuery;
       const response = await apiClient.get('/fish', { params });
       setFish(response.data.fish || response.data || []);
     } catch {
@@ -65,7 +164,7 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCategory, selectedSpecies, searchQuery]);
+  }, [fishType, gender, priceMin, priceMax, region, searchQuery]);
 
   useEffect(() => {
     setLoading(true);
@@ -77,12 +176,38 @@ export default function HomeScreen({ navigation }) {
     fetchFish();
   };
 
-  const handleCategorySelect = (cat) => {
-    setSelectedCategory(cat);
-    setSelectedSpecies('');
+  const hasFilter = fishType || gender || priceMin || priceMax || region;
+
+  const resetFilters = () => {
+    setFishType('');
+    setGender('');
+    setPriceMin('');
+    setPriceMax('');
+    setRegion('');
   };
 
-  const subcategories = selectedCategory !== '전체' ? CATEGORIES[selectedCategory] || [] : [];
+  const priceLabel = () => {
+    if (priceMin && priceMax) return `${Number(priceMin).toLocaleString()}~${Number(priceMax).toLocaleString()}`;
+    if (priceMin) return `${Number(priceMin).toLocaleString()}원~`;
+    if (priceMax) return `~${Number(priceMax).toLocaleString()}원`;
+    return '가격';
+  };
+
+  const FilterChip = ({ label, active, onPress }) => (
+    <TouchableOpacity
+      style={[styles.filterChip, active && styles.filterChipActive]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{label}</Text>
+      <Ionicons
+        name="chevron-down"
+        size={12}
+        color={active ? COLORS.primary : COLORS.textMuted}
+        style={{ marginLeft: 3 }}
+      />
+    </TouchableOpacity>
+  );
 
   const renderFishItem = ({ item }) => {
     const rawImage = item.images?.length > 0 ? item.images[0] : item.image_url || null;
@@ -103,11 +228,18 @@ export default function HomeScreen({ navigation }) {
         )}
         <View style={styles.itemBody}>
           <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-          {item.species ? (
-            <View style={styles.speciesTag}>
-              <Text style={styles.speciesTagText}>{item.species}</Text>
-            </View>
-          ) : null}
+          <View style={styles.tagRow}>
+            {item.category ? (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.category}</Text>
+              </View>
+            ) : null}
+            {item.gender && item.gender !== '없음' ? (
+              <View style={[styles.tag, styles.tagGender]}>
+                <Text style={styles.tagText}>{item.gender}</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.itemPrice}>
             {item.price != null ? `${Number(item.price).toLocaleString()}원` : '가격 문의'}
           </Text>
@@ -139,66 +271,44 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
+      {/* 필터 칩 바 */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.categoryScroll}
-        contentContainerStyle={styles.categoryScrollContent}
+        style={styles.filterBar}
+        contentContainerStyle={styles.filterBarContent}
       >
-        {ALL_CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.categoryChip,
-              selectedCategory === cat && styles.categoryChipActive,
-            ]}
-            onPress={() => handleCategorySelect(cat)}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === cat && styles.categoryChipTextActive,
-              ]}
-            >
-              {cat}
-            </Text>
+        <FilterChip
+          label={fishType || '어종'}
+          active={!!fishType}
+          onPress={() => setOpenModal('fishType')}
+        />
+        <FilterChip
+          label={gender || '성별'}
+          active={!!gender}
+          onPress={() => setOpenModal('gender')}
+        />
+        <FilterChip
+          label={priceLabel()}
+          active={!!(priceMin || priceMax)}
+          onPress={() => setOpenModal('price')}
+        />
+        <FilterChip
+          label={region || '지역'}
+          active={!!region}
+          onPress={() => setOpenModal('region')}
+        />
+        {hasFilter && (
+          <TouchableOpacity style={styles.resetChip} onPress={resetFilters}>
+            <Ionicons name="close-circle" size={14} color={COLORS.textMuted} />
+            <Text style={styles.resetChipText}>초기화</Text>
           </TouchableOpacity>
-        ))}
+        )}
       </ScrollView>
-
-      {subcategories.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.subCategoryScroll}
-          contentContainerStyle={styles.categoryScrollContent}
-        >
-          {subcategories.map((sub) => (
-            <TouchableOpacity
-              key={sub}
-              style={[
-                styles.categoryChip,
-                selectedSpecies === sub && styles.categoryChipActive,
-              ]}
-              onPress={() => setSelectedSpecies(selectedSpecies === sub ? '' : sub)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedSpecies === sub && styles.categoryChipTextActive,
-                ]}
-              >
-                {sub}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
 
       <View style={styles.listHeaderRow}>
         <Text style={styles.listHeaderText}>
-          {selectedCategory === '전체' ? '전체 상품' : selectedCategory}
-          {selectedSpecies ? ` · ${selectedSpecies}` : ''}
+          {hasFilter ? '필터 적용됨' : '전체 상품'}
         </Text>
         <Text style={styles.listCount}>{fish.length}개</Text>
       </View>
@@ -237,179 +347,146 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      <PickerModal
+        visible={openModal === 'fishType'}
+        title="어종 선택"
+        options={FISH_TYPES}
+        selected={fishType}
+        onSelect={setFishType}
+        onClose={() => setOpenModal(null)}
+        allowClear
+      />
+      <PickerModal
+        visible={openModal === 'gender'}
+        title="성별 선택"
+        options={GENDERS}
+        selected={gender}
+        onSelect={setGender}
+        onClose={() => setOpenModal(null)}
+        allowClear
+      />
+      <PickerModal
+        visible={openModal === 'region'}
+        title="지역 선택"
+        options={REGIONS}
+        selected={region}
+        onSelect={setRegion}
+        onClose={() => setOpenModal(null)}
+        allowClear
+      />
+      <PriceModal
+        visible={openModal === 'price'}
+        priceMin={priceMin}
+        priceMax={priceMax}
+        onApply={(min, max) => { setPriceMin(min); setPriceMax(max); }}
+        onClose={() => setOpenModal(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 52,
-    paddingBottom: 12,
-    backgroundColor: COLORS.surface,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: FONTS.extrabold,
-    color: COLORS.primary,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  header: { paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12, backgroundColor: COLORS.surface },
+  logoText: { fontSize: 22, fontWeight: FONTS.extrabold, color: COLORS.primary },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 10,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   searchInput: {
-    height: 42,
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: COLORS.text,
+    height: 42, backgroundColor: COLORS.background,
+    borderRadius: 10, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 14, fontSize: 14, color: COLORS.text,
   },
-  categoryScroll: {
+  filterBar: { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  filterBarContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: COLORS.surface, marginRight: 6,
+  },
+  filterChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
+  filterChipText: { fontSize: 13, color: COLORS.textSub, fontWeight: FONTS.medium },
+  filterChipTextActive: { color: COLORS.primary, fontWeight: FONTS.semibold },
+  resetChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
-  subCategoryScroll: {
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  categoryScrollContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    color: COLORS.textSub,
-    fontWeight: FONTS.medium,
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: FONTS.semibold,
-  },
+  resetChipText: { fontSize: 12, color: COLORS.textMuted },
   listHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: COLORS.background,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: COLORS.background,
   },
-  listHeaderText: {
-    fontSize: 14,
-    fontWeight: FONTS.semibold,
-    color: COLORS.text,
-  },
-  listCount: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-  },
-  listContent: {
-    paddingBottom: 24,
-    backgroundColor: COLORS.surface,
-  },
+  listHeaderText: { fontSize: 14, fontWeight: FONTS.semibold, color: COLORS.text },
+  listCount: { fontSize: 13, color: COLORS.textMuted },
+  listContent: { paddingBottom: 24, backgroundColor: COLORS.surface },
   listItem: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    alignItems: 'flex-start',
-    gap: 14,
+    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.divider,
+    alignItems: 'flex-start', gap: 14,
   },
-  thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: COLORS.divider,
-  },
+  thumbnail: { width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.divider },
   thumbnailPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.divider,
+    justifyContent: 'center', alignItems: 'center',
   },
-  thumbnailPlaceholderText: {
-    fontSize: 30,
+  thumbnailPlaceholderText: { fontSize: 30 },
+  itemBody: { flex: 1, paddingTop: 2 },
+  itemTitle: { fontSize: 15, fontWeight: FONTS.semibold, color: COLORS.text, lineHeight: 21, marginBottom: 5 },
+  tagRow: { flexDirection: 'row', gap: 5, marginBottom: 5 },
+  tag: {
+    alignSelf: 'flex-start', backgroundColor: COLORS.primary,
+    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2,
   },
-  itemBody: {
-    flex: 1,
-    paddingTop: 2,
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: FONTS.semibold,
-    color: COLORS.text,
-    lineHeight: 21,
-    marginBottom: 4,
-  },
-  speciesTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 5,
-  },
-  speciesTagText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: FONTS.medium,
-  },
-  itemPrice: {
-    fontSize: 15,
-    fontWeight: FONTS.bold,
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  itemMeta: {
-    fontSize: 12,
-    color: COLORS.textSub,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingTop: 80,
+  tagGender: { backgroundColor: '#8B79D0' },
+  tagText: { fontSize: 11, color: '#FFFFFF', fontWeight: FONTS.medium },
+  itemPrice: { fontSize: 15, fontWeight: FONTS.bold, color: COLORS.text, marginBottom: 4 },
+  itemMeta: { fontSize: 12, color: COLORS.textSub },
+  emptyContainer: { alignItems: 'center', paddingTop: 80, backgroundColor: COLORS.surface },
+  emptyIcon: { fontSize: 52, marginBottom: 12 },
+  emptyText: { fontSize: 15, color: COLORS.textMuted },
+});
+
+const modal = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: {
     backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
   },
-  emptyIcon: {
-    fontSize: 52,
-    marginBottom: 12,
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: COLORS.divider,
   },
-  emptyText: {
-    fontSize: 15,
-    color: COLORS.textMuted,
+  headerTitle: { fontSize: 16, fontWeight: FONTS.bold, color: COLORS.text },
+  option: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 15,
+    borderBottomWidth: 1, borderBottomColor: COLORS.divider,
   },
+  optionActive: { backgroundColor: COLORS.primaryLight },
+  optionText: { fontSize: 15, color: COLORS.text },
+  optionTextActive: { color: COLORS.primary, fontWeight: FONTS.semibold },
+  priceBody: { padding: 20 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  priceInput: {
+    flex: 1, height: 48, borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 12, fontSize: 15, color: COLORS.text,
+  },
+  priceSep: { fontSize: 16, color: COLORS.textMuted },
+  applyBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 12,
+    height: 48, justifyContent: 'center', alignItems: 'center',
+  },
+  applyBtnText: { color: '#FFF', fontSize: 16, fontWeight: FONTS.bold },
+  clearBtn: { marginTop: 12, alignItems: 'center' },
+  clearBtnText: { color: COLORS.textMuted, fontSize: 14, textDecorationLine: 'underline' },
 });
