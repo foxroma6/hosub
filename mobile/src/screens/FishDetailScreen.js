@@ -76,12 +76,8 @@ export default function FishDetailScreen({ route, navigation }) {
     try {
       const res = await apiClient.post(`/wishlist/${fish_id}`);
       setWishlisted(res.data.wishlisted);
-    } catch (error) {
-      if (error?.response?.status === 401) {
-        Alert.alert('로그인 필요', '세션이 만료되었습니다. 다시 로그인해주세요.');
-      } else {
-        Alert.alert('오류', '찜하기에 실패했습니다.');
-      }
+    } catch {
+      Alert.alert('오류', '찜하기에 실패했습니다.');
     } finally {
       setWishlistLoading(false);
     }

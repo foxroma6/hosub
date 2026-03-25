@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 
@@ -8,6 +8,29 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const interceptorRef = useRef(null);
+
+  const logout = async () => {
+    await AsyncStorage.multiRemove(['token', 'user']);
+    setToken(null);
+    setUser(null);
+  };
+
+  // 401 자동 로그아웃 인터셉터 (AuthContext에서 설정해야 logout 함수 접근 가능)
+  useEffect(() => {
+    interceptorRef.current = apiClient.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error?.response?.status === 401) {
+          await logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      apiClient.interceptors.response.eject(interceptorRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     restoreSession();
@@ -17,17 +40,20 @@ export function AuthProvider({ children }) {
     try {
       const storedToken = await AsyncStorage.getItem('token');
       if (!storedToken) return;
-      setToken(storedToken);
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) setUser(JSON.parse(storedUser));
-      // 백그라운드에서 최신 정보 갱신 (실패해도 무관)
-      apiClient.get('/me', {
-        headers: { Authorization: `Bearer ${storedToken}` },
-      }).then((res) => setUser(res.data)).catch(() => {});
+      // 토큰 유효성 먼저 검증
+      try {
+        const res = await apiClient.get('/me', {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        setToken(storedToken);
+        setUser(res.data);
+        await AsyncStorage.setItem('user', JSON.stringify(res.data));
+      } catch (err) {
+        // 401이면 토큰 만료 → 로그아웃
+        await AsyncStorage.multiRemove(['token', 'user']);
+      }
     } catch {
       await AsyncStorage.multiRemove(['token', 'user']);
-      setToken(null);
-      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -41,13 +67,6 @@ export function AuthProvider({ children }) {
     setToken(newToken);
     setUser(newUser);
     return response.data;
-  };
-
-  const logout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
   };
 
   const register = async (username, email, password) => {
