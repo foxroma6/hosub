@@ -30,7 +30,10 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    if (error?.response?.status === 401) {
+      await AsyncStorage.multiRemove(['token', 'user']);
+    }
     return Promise.reject(error);
   }
 );

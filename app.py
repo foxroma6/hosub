@@ -43,6 +43,7 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = __import__('datetime').timedelta(days=30)
 
 db = SQLAlchemy(app)
 mail = Mail(app)
