@@ -249,6 +249,13 @@ export default function HomeScreen({ navigation }) {
             </Text>
           ) : null}
         </View>
+        <TouchableOpacity
+          style={styles.heartBtn}
+          onPress={() => navigation.navigate('FishDetail', { fish_id: item.id })}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="heart-outline" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -437,6 +444,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   thumbnailPlaceholderText: { fontSize: 30 },
+  heartBtn: { padding: 4, alignSelf: 'flex-end', marginBottom: 2 },
   itemBody: { flex: 1, paddingTop: 2 },
   itemTitle: { fontSize: 15, fontWeight: FONTS.semibold, color: COLORS.text, lineHeight: 21, marginBottom: 5 },
   tagRow: { flexDirection: 'row', gap: 5, marginBottom: 5 },

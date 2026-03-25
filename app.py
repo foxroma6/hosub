@@ -161,6 +161,16 @@ class Message(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id])
 
 
+class Wishlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('user_id', 'fish_id'),)
+
+    fish_item = db.relationship('Fish', foreign_keys=[fish_id])
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -636,6 +646,19 @@ def run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+        try:
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS wishlist (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES "user"(id),
+                    fish_id INTEGER NOT NULL REFERENCES fish(id) ON DELETE CASCADE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(user_id, fish_id)
+                )
+            '''))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def seed_fish_images():
@@ -974,6 +997,40 @@ def api_send_message(room_id):
         'is_mine': True,
         'created_at': message.created_at.strftime('%H:%M'),
     })
+
+
+# ── Wishlist API ──────────────────────────────────────────────
+
+@app.route('/api/wishlist', methods=['GET'])
+@jwt_required()
+def api_wishlist_list():
+    user_id = int(get_jwt_identity())
+    items = Wishlist.query.filter_by(user_id=user_id).order_by(Wishlist.created_at.desc()).all()
+    fish_list = [fish_to_dict(w.fish_item) for w in items if w.fish_item]
+    return jsonify(fish_list)
+
+
+@app.route('/api/wishlist/<int:fish_id>', methods=['POST'])
+@jwt_required()
+def api_wishlist_toggle(fish_id):
+    user_id = int(get_jwt_identity())
+    Fish.query.get_or_404(fish_id)
+    existing = Wishlist.query.filter_by(user_id=user_id, fish_id=fish_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'wishlisted': False})
+    db.session.add(Wishlist(user_id=user_id, fish_id=fish_id))
+    db.session.commit()
+    return jsonify({'wishlisted': True})
+
+
+@app.route('/api/wishlist/<int:fish_id>/check')
+@jwt_required()
+def api_wishlist_check(fish_id):
+    user_id = int(get_jwt_identity())
+    exists = Wishlist.query.filter_by(user_id=user_id, fish_id=fish_id).first()
+    return jsonify({'wishlisted': bool(exists)})
 
 
 with app.app_context():

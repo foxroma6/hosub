@@ -11,6 +11,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
@@ -41,9 +42,12 @@ export default function FishDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   useEffect(() => {
     fetchFish();
+    fetchWishlistStatus();
   }, [fish_id]);
 
   const fetchFish = async () => {
@@ -55,6 +59,27 @@ export default function FishDetailScreen({ route, navigation }) {
       navigation.goBack();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWishlistStatus = async () => {
+    if (!user) return;
+    try {
+      const res = await apiClient.get(`/wishlist/${fish_id}/check`);
+      setWishlisted(res.data.wishlisted);
+    } catch {}
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!user) { navigation.navigate('Login'); return; }
+    setWishlistLoading(true);
+    try {
+      const res = await apiClient.post(`/wishlist/${fish_id}`);
+      setWishlisted(res.data.wishlisted);
+    } catch {
+      Alert.alert('오류', '찜하기에 실패했습니다.');
+    } finally {
+      setWishlistLoading(false);
     }
   };
 
@@ -270,27 +295,39 @@ export default function FishDetailScreen({ route, navigation }) {
               )}
             </TouchableOpacity>
           </View>
-        ) : isLoggedIn ? (
-          <TouchableOpacity
-            style={[styles.chatButton, fish.status === '판매완료' && styles.chatButtonDisabled]}
-            onPress={handleStartChat}
-            disabled={actionLoading || fish.status === '판매완료'}
-          >
-            {actionLoading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.chatButtonText}>
-                {fish.status === '판매완료' ? '판매 완료된 상품입니다' : '채팅 문의하기'}
-              </Text>
-            )}
-          </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={styles.chatButton}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.chatButtonText}>로그인 후 문의하기</Text>
-          </TouchableOpacity>
+          <View style={styles.buyerActions}>
+            <TouchableOpacity
+              style={styles.wishlistButton}
+              onPress={handleToggleWishlist}
+              disabled={wishlistLoading}
+            >
+              {wishlistLoading ? (
+                <ActivityIndicator color={wishlisted ? '#EF4444' : COLORS.textMuted} size="small" />
+              ) : (
+                <Ionicons
+                  name={wishlisted ? 'heart' : 'heart-outline'}
+                  size={26}
+                  color={wishlisted ? '#EF4444' : COLORS.textMuted}
+                />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chatButton, fish.status === '판매완료' && styles.chatButtonDisabled]}
+              onPress={isLoggedIn ? handleStartChat : () => navigation.navigate('Login')}
+              disabled={actionLoading || fish.status === '판매완료'}
+            >
+              {actionLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.chatButtonText}>
+                  {!isLoggedIn ? '로그인 후 문의하기'
+                    : fish.status === '판매완료' ? '판매 완료된 상품입니다'
+                    : '채팅 문의하기'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -473,7 +510,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingBottom: 28,
   },
+  buyerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  wishlistButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
   chatButton: {
+    flex: 1,
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     height: 50,

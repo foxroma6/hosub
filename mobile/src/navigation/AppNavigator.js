@@ -16,6 +16,7 @@ import ChatListScreen from '../screens/ChatListScreen';
 import ChatScreen from '../screens/ChatScreen';
 import MyPageScreen from '../screens/MyPageScreen';
 import SellerProfileScreen from '../screens/SellerProfileScreen';
+import WishlistScreen from '../screens/WishlistScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -78,6 +79,23 @@ function MainTabs() {
         {(props) =>
           user ? (
             <NewFishScreen {...props} />
+          ) : (
+            <AuthGuardWrapper {...props} />
+          )
+        }
+      </Tab.Screen>
+      <Tab.Screen
+        name="Wishlist"
+        options={{
+          tabBarLabel: '찜',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="heart-outline" size={26} color={color} />
+          ),
+        }}
+      >
+        {(props) =>
+          user ? (
+            <WishlistScreen {...props} />
           ) : (
             <AuthGuardWrapper {...props} />
           )
