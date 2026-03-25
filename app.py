@@ -164,11 +164,9 @@ class Message(db.Model):
 class Wishlist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    fish_id = db.Column(db.Integer, db.ForeignKey('fish.id'), nullable=False)
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    __table_args__ = (db.UniqueConstraint('user_id', 'fish_id'),)
-
-    fish_item = db.relationship('Fish', foreign_keys=[fish_id])
+    __table_args__ = (db.UniqueConstraint('user_id', 'fish_id'), {})
 
 
 @login_manager.user_loader
@@ -1006,8 +1004,12 @@ def api_send_message(room_id):
 def api_wishlist_list():
     user_id = int(get_jwt_identity())
     items = Wishlist.query.filter_by(user_id=user_id).order_by(Wishlist.created_at.desc()).all()
-    fish_list = [fish_to_dict(w.fish_item) for w in items if w.fish_item]
-    return jsonify(fish_list)
+    fish_ids = [w.fish_id for w in items]
+    if not fish_ids:
+        return jsonify([])
+    fish_map = {f.id: f for f in Fish.query.filter(Fish.id.in_(fish_ids)).all()}
+    result = [fish_to_dict(fish_map[fid]) for fid in fish_ids if fid in fish_map]
+    return jsonify(result)
 
 
 @app.route('/api/wishlist/<int:fish_id>', methods=['POST'])
