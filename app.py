@@ -146,6 +146,8 @@ class ChatRoom(db.Model):
     buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    buyer_hidden = db.Column(db.Boolean, default=False)
+    seller_hidden = db.Column(db.Boolean, default=False)
 
     buyer = db.relationship('User', foreign_keys=[buyer_id])
     seller = db.relationship('User', foreign_keys=[seller_id])
@@ -646,6 +648,20 @@ def run_migrations():
         except Exception:
             conn.rollback()
         try:
+            conn.execute(text(
+                'ALTER TABLE chat_room ADD COLUMN buyer_hidden BOOLEAN DEFAULT FALSE'
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(text(
+                'ALTER TABLE chat_room ADD COLUMN seller_hidden BOOLEAN DEFAULT FALSE'
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS wishlist (
                     id SERIAL PRIMARY KEY,
@@ -936,9 +952,24 @@ def api_my_listings():
 @jwt_required()
 def api_chat_list():
     user_id = int(get_jwt_identity())
-    buy_rooms  = ChatRoom.query.filter_by(buyer_id=user_id).all()
-    sell_rooms = ChatRoom.query.filter_by(seller_id=user_id).all()
+    buy_rooms  = ChatRoom.query.filter_by(buyer_id=user_id,  buyer_hidden=False).all()
+    sell_rooms = ChatRoom.query.filter_by(seller_id=user_id, seller_hidden=False).all()
     return jsonify([room_to_dict(r, user_id) for r in buy_rooms + sell_rooms])
+
+
+@app.route('/api/chat/<int:room_id>/hide', methods=['PATCH'])
+@jwt_required()
+def api_chat_hide(room_id):
+    user_id = int(get_jwt_identity())
+    room = ChatRoom.query.get_or_404(room_id)
+    if room.buyer_id == user_id:
+        room.buyer_hidden = True
+    elif room.seller_id == user_id:
+        room.seller_hidden = True
+    else:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    db.session.commit()
+    return jsonify({'hidden': True})
 
 
 @app.route('/api/chat/start/<int:fish_id>', methods=['POST'])

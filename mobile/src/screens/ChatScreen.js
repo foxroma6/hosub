@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
@@ -72,6 +73,38 @@ export default function ChatScreen({ route, navigation }) {
       }, 100);
     }
   }, [messages.length]);
+
+  const handleHideRoom = () => {
+    Alert.alert(
+      '채팅 삭제',
+      '이 채팅을 삭제하시겠습니까?\n대화 내역은 서버에 유지됩니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.patch(`/chat/${room_id}/hide`);
+              navigation.goBack();
+            } catch {
+              Alert.alert('오류', '채팅 삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleHideRoom} style={{ marginRight: 4 }}>
+          <Ionicons name="trash-outline" size={22} color={COLORS.textSub} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, room_id]);
 
   const handleSend = async () => {
     if (!messageText.trim()) return;

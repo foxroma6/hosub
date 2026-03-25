@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import apiClient, { API_BASE } from '../api/client';
 import { COLORS, FONTS } from '../constants/colors';
 
@@ -66,6 +68,29 @@ export default function ChatListScreen({ navigation }) {
     fetchRooms();
   };
 
+  const handleHideRoom = (item) => {
+    const partnerName = item.partner_username || item.partner?.username || '상대방';
+    Alert.alert(
+      '채팅 삭제',
+      `${partnerName}와의 채팅을 삭제하시겠습니까?\n대화 내역은 서버에 유지됩니다.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.patch(`/chat/${item.id}/hide`);
+              setRooms((prev) => prev.filter((r) => r.id !== item.id));
+            } catch {
+              Alert.alert('오류', '채팅 삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderRoom = ({ item }) => {
     const partnerName = item.partner_username || item.partner?.username || '알 수 없음';
     const fishTitle = item.fish_title || item.fish?.title || '상품';
@@ -108,7 +133,19 @@ export default function ChatListScreen({ navigation }) {
           <Text style={styles.fishTitleText} numberOfLines={1}>
             {fishTitle}
           </Text>
+          {item.last_message ? (
+            <Text style={styles.lastMessageText} numberOfLines={1}>
+              {item.last_message}
+            </Text>
+          ) : null}
         </View>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => handleHideRoom(item)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -224,6 +261,15 @@ const styles = StyleSheet.create({
   fishTitleText: {
     fontSize: 13,
     color: COLORS.textSub,
+  },
+  lastMessageText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  deleteBtn: {
+    padding: 6,
+    alignSelf: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
