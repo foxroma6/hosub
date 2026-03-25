@@ -72,7 +72,7 @@ export default function ChatListScreen({ navigation }) {
     const partnerName = item.partner_username || item.partner?.username || '상대방';
     Alert.alert(
       '채팅 삭제',
-      `${partnerName}와의 채팅을 삭제하시겠습니까?\n대화 내역은 서버에 유지됩니다.`,
+      `${partnerName}와의 채팅을 삭제하시겠습니까?`,
       [
         { text: '취소', style: 'cancel' },
         {
