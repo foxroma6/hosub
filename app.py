@@ -22,7 +22,7 @@ cloudinary.config(
 app = Flask(__name__)
 
 FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물']
-GENDERS = ['암', '수', '혼합', '없음']
+GENDERS = ['수컷', '암컷', '미구분']
 REGIONS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
            '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
@@ -119,7 +119,7 @@ class Fish(db.Model):
     price = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     image_url = db.Column(db.String(300))
-    gender = db.Column(db.String(10), default='없음')
+    gender = db.Column(db.String(10), default='미구분')
     weight = db.Column(db.String(50))
     quantity = db.Column(db.String(50))
     trade_type = db.Column(db.String(20), default='직거래')
@@ -315,7 +315,7 @@ def fish_new():
             title=request.form.get('title'),
             category=request.form.get('category'),
             species=request.form.get('species', ''),
-            gender=request.form.get('gender', '없음'),
+            gender=request.form.get('gender', '미구분'),
             price=int(request.form.get('price', 0)),
             description=request.form.get('description'),
             weight=request.form.get('weight'),
@@ -617,7 +617,7 @@ def run_migrations():
             conn.rollback()
         try:
             conn.execute(text(
-                "ALTER TABLE fish ADD COLUMN gender VARCHAR(10) DEFAULT '없음'"
+                "ALTER TABLE fish ADD COLUMN gender VARCHAR(10) DEFAULT '미구분'"
             ))
             conn.commit()
         except Exception:
@@ -692,7 +692,7 @@ def fish_to_dict(f, detail=False):
         'price': f.price,
         'image_url': imgs[0] if imgs else None,
         'images': imgs,
-        'gender': f.gender or '없음',
+        'gender': f.gender or '미구분',
         'weight': f.weight or '',
         'quantity': f.quantity or '',
         'trade_type': f.trade_type or '',
@@ -806,7 +806,7 @@ def api_fish_new():
         title=request.form.get('title'),
         category=request.form.get('category'),
         species=request.form.get('species', ''),
-        gender=request.form.get('gender', '없음'),
+        gender=request.form.get('gender', '미구분'),
         price=int(request.form.get('price', 0)),
         description=request.form.get('description', ''),
         weight=request.form.get('weight', ''),
