@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import apiClient, { API_BASE } from '../api/client';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
@@ -197,9 +198,11 @@ export default function HomeScreen({ navigation }) {
     fetchFish();
   }, [fetchFish]);
 
-  useEffect(() => {
-    fetchWishlistIds();
-  }, [fetchWishlistIds]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchWishlistIds();
+    }, [fetchWishlistIds])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -47,8 +47,8 @@ export default function FishDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     fetchFish();
-    fetchWishlistStatus();
-  }, [fish_id]);
+    if (user) fetchWishlistStatus();
+  }, [fish_id, user]);
 
   const fetchFish = async () => {
     try {
@@ -63,20 +63,24 @@ export default function FishDetailScreen({ route, navigation }) {
   };
 
   const fetchWishlistStatus = async () => {
-    if (!user) return;
     try {
       const res = await apiClient.get(`/wishlist/${fish_id}/check`);
-      setWishlisted(res.data.wishlisted);
-    } catch {}
+      setWishlisted(!!res.data.wishlisted);
+    } catch {
+      setWishlisted(false);
+    }
   };
 
   const handleToggleWishlist = async () => {
     if (!user) { navigation.navigate('Login'); return; }
     setWishlistLoading(true);
+    const prev = wishlisted;
+    setWishlisted(!prev); // 즉시 반영 (낙관적 업데이트)
     try {
       const res = await apiClient.post(`/wishlist/${fish_id}`);
-      setWishlisted(res.data.wishlisted);
+      setWishlisted(!!res.data.wishlisted);
     } catch {
+      setWishlisted(prev); // 실패 시 원래 상태로 복구
       Alert.alert('오류', '찜하기에 실패했습니다.');
     } finally {
       setWishlistLoading(false);
