@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient, { API_BASE } from '../api/client';
+import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
 
 const FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물'];
@@ -133,6 +134,7 @@ function PriceModal({ visible, priceMin, priceMax, onApply, onClose }) {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const [fish, setFish] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -145,7 +147,31 @@ export default function HomeScreen({ navigation }) {
   const [priceMax, setPriceMax] = useState('');
   const [region, setRegion] = useState('');
 
-  const [openModal, setOpenModal] = useState(null); // 'fishType' | 'gender' | 'price' | 'region'
+  const [openModal, setOpenModal] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState(new Set());
+
+  const fetchWishlistIds = useCallback(async () => {
+    if (!user) { setWishlistIds(new Set()); return; }
+    try {
+      const res = await apiClient.get('/wishlist');
+      setWishlistIds(new Set((res.data || []).map((f) => f.id)));
+    } catch {
+      setWishlistIds(new Set());
+    }
+  }, [user]);
+
+  const handleToggleWishlist = useCallback(async (fishId) => {
+    if (!user) { navigation.navigate('Login'); return; }
+    try {
+      const res = await apiClient.post(`/wishlist/${fishId}`);
+      setWishlistIds((prev) => {
+        const next = new Set(prev);
+        if (res.data.wishlisted) next.add(fishId);
+        else next.delete(fishId);
+        return next;
+      });
+    } catch {}
+  }, [user]);
 
   const fetchFish = useCallback(async () => {
     try {
@@ -170,6 +196,10 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
     fetchFish();
   }, [fetchFish]);
+
+  useEffect(() => {
+    fetchWishlistIds();
+  }, [fetchWishlistIds]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -251,10 +281,14 @@ export default function HomeScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={styles.heartBtn}
-          onPress={() => navigation.navigate('FishDetail', { fish_id: item.id })}
+          onPress={() => handleToggleWishlist(item.id)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="heart-outline" size={20} color={COLORS.textMuted} />
+          <Ionicons
+            name={wishlistIds.has(item.id) ? 'heart' : 'heart-outline'}
+            size={20}
+            color={wishlistIds.has(item.id) ? '#EF4444' : COLORS.textMuted}
+          />
         </TouchableOpacity>
       </TouchableOpacity>
     );
