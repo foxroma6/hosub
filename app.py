@@ -1015,16 +1015,23 @@ def api_wishlist_list():
 @app.route('/api/wishlist/<int:fish_id>', methods=['POST'])
 @jwt_required()
 def api_wishlist_toggle(fish_id):
-    user_id = int(get_jwt_identity())
-    Fish.query.get_or_404(fish_id)
-    existing = Wishlist.query.filter_by(user_id=user_id, fish_id=fish_id).first()
-    if existing:
-        db.session.delete(existing)
+    try:
+        user_id = int(get_jwt_identity())
+        fish = db.session.get(Fish, fish_id)
+        if not fish:
+            return jsonify({'error': '상품을 찾을 수 없습니다.'}), 404
+        existing = Wishlist.query.filter_by(user_id=user_id, fish_id=fish_id).first()
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+            return jsonify({'wishlisted': False})
+        db.session.add(Wishlist(user_id=user_id, fish_id=fish_id))
         db.session.commit()
-        return jsonify({'wishlisted': False})
-    db.session.add(Wishlist(user_id=user_id, fish_id=fish_id))
-    db.session.commit()
-    return jsonify({'wishlisted': True})
+        return jsonify({'wishlisted': True})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Wishlist toggle error fish_id={fish_id}: {e}')
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/wishlist/<int:fish_id>/check')
