@@ -18,7 +18,7 @@ import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
 
 const FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물'];
-const GENDERS    = ['수컷', '암컷', '미구분'];
+const GENDERS    = ['수컷', '암컷', '기타'];
 const TRADE_TYPES = ['직거래', '택배', '모두 가능'];
 
 export default function NewFishScreen({ navigation }) {
@@ -28,7 +28,7 @@ export default function NewFishScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [species, setSpecies] = useState('');
-  const [gender, setGender] = useState('미구분');
+  const [gender, setGender] = useState('기타');
   const [price, setPrice] = useState('');
   const [weight, setWeight] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -116,7 +116,7 @@ export default function NewFishScreen({ navigation }) {
             setTitle('');
             setCategory('');
             setSpecies('');
-            setGender('미구분');
+            setGender('기타');
             setPrice('');
             setWeight('');
             setQuantity('');

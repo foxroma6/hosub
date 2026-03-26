@@ -20,7 +20,7 @@ import { AuthContext } from '../context/AuthContext';
 import { COLORS, FONTS } from '../constants/colors';
 
 const FISH_TYPES = ['담수어', '해수어', '산호', '파충류', '수초 & 식물'];
-const GENDERS    = ['수컷', '암컷', '미구분'];
+const GENDERS    = ['수컷', '암컷', '기타'];
 const REGIONS    = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
                     '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
 
@@ -269,7 +269,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.tagText}>{item.category}</Text>
               </View>
             ) : null}
-            {item.gender && item.gender !== '미구분' ? (
+            {item.gender && item.gender !== '기타' ? (
               <View style={[styles.tag, styles.tagGender]}>
                 <Text style={styles.tagText}>{item.gender}</Text>
               </View>
