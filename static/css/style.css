@@ -303,6 +303,37 @@ a { text-decoration: none; color: inherit; }
   white-space: nowrap;
 }
 
+/* ── List Header Row ── */
+.list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 14px;
+}
+.list-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.sort-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-btn {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 2px 4px;
+}
+.sort-btn.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+.sort-div {
+  font-size: 0.75rem;
+  color: var(--border);
+}
+
 /* ── Fish Grid ── */
 .fish-grid {
   display: grid;

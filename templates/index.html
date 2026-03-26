@@ -49,6 +49,17 @@
     </div>
   </form>
 
+  <div class="list-header-row">
+    <span class="list-count">{{ fish_list|length }}개</span>
+    <div class="sort-btns">
+      <a href="?{{ request.query_string.decode().replace('sort=popular','').replace('sort=newest','').replace('&&','&').strip('&') }}&sort=newest"
+         class="sort-btn {% if sort != 'popular' %}active{% endif %}">최신순</a>
+      <span class="sort-div">|</span>
+      <a href="?{{ request.query_string.decode().replace('sort=popular','').replace('sort=newest','').replace('&&','&').strip('&') }}&sort=popular"
+         class="sort-btn {% if sort == 'popular' %}active{% endif %}">인기순</a>
+    </div>
+  </div>
+
   {% if fish_list %}
     <div class="fish-grid">
       {% for fish in fish_list %}

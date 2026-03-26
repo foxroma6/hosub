@@ -7,7 +7,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from sqlalchemy import text
+from sqlalchemy import text, func
 from datetime import datetime
 import cloudinary
 import cloudinary.uploader
@@ -187,6 +187,7 @@ def index():
     price_max   = request.args.get('price_max', '')
     region      = request.args.get('region', '')
     search      = request.args.get('search', '')
+    sort        = request.args.get('sort', 'newest')
 
     query = Fish.query.filter_by(status='판매중')
     if fish_type:
@@ -204,13 +205,13 @@ def index():
             Fish.title.contains(search) | Fish.species.contains(search)
         )
 
-    fish_list = query.order_by(Fish.created_at.desc()).all()
+    fish_list = _apply_sort(query, sort).all()
 
     return render_template('index.html', fish_list=fish_list,
                            fish_types=FISH_TYPES, genders=GENDERS, regions=REGIONS,
                            fish_type=fish_type, gender=gender,
                            price_min=price_min, price_max=price_max,
-                           region=region, search=search)
+                           region=region, search=search, sort=sort)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -804,6 +805,19 @@ def api_register():
     return jsonify({'message': '인증 이메일을 발송했습니다. 이메일을 확인해주세요.'}), 201
 
 
+def _apply_sort(query, sort):
+    if sort == 'popular':
+        wc = db.session.query(
+            Wishlist.fish_id,
+            func.count(Wishlist.id).label('wc')
+        ).group_by(Wishlist.fish_id).subquery()
+        query = query.outerjoin(wc, Fish.id == wc.c.fish_id)
+        query = query.order_by(func.coalesce(wc.c.wc, 0).desc(), Fish.created_at.desc())
+    else:
+        query = query.order_by(Fish.created_at.desc())
+    return query
+
+
 @app.route('/api/fish')
 def api_fish_list():
     fish_type  = request.args.get('fish_type', '')
@@ -812,6 +826,7 @@ def api_fish_list():
     price_max  = request.args.get('price_max', '')
     region     = request.args.get('region', '')
     search     = request.args.get('search', '')
+    sort       = request.args.get('sort', 'newest')
     query = Fish.query.filter_by(status='판매중')
     if fish_type:
         query = query.filter(Fish.category == fish_type)
@@ -825,7 +840,7 @@ def api_fish_list():
         query = query.filter(Fish.location.contains(region))
     if search:
         query = query.filter(Fish.title.contains(search) | Fish.species.contains(search))
-    fish_list = query.order_by(Fish.created_at.desc()).all()
+    fish_list = _apply_sort(query, sort).all()
     return jsonify([fish_to_dict(f) for f in fish_list])
 
 

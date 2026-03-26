@@ -148,6 +148,7 @@ export default function HomeScreen({ navigation }) {
   const [priceMax, setPriceMax] = useState('');
   const [region, setRegion] = useState('');
 
+  const [sort, setSort] = useState('newest'); // 'newest' | 'popular'
   const [openModal, setOpenModal] = useState(null);
   const [wishlistIds, setWishlistIds] = useState(new Set());
 
@@ -183,6 +184,7 @@ export default function HomeScreen({ navigation }) {
       if (priceMax)    params.price_max  = priceMax;
       if (region)      params.region     = region;
       if (searchQuery) params.search     = searchQuery;
+      params.sort = sort;
       const response = await apiClient.get('/fish', { params });
       setFish(response.data.fish || response.data || []);
     } catch {
@@ -191,7 +193,7 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fishType, gender, priceMin, priceMax, region, searchQuery]);
+  }, [fishType, gender, priceMin, priceMax, region, searchQuery, sort]);
 
   useEffect(() => {
     setLoading(true);
@@ -352,9 +354,23 @@ export default function HomeScreen({ navigation }) {
 
       <View style={styles.listHeaderRow}>
         <Text style={styles.listHeaderText}>
-          {hasFilter ? '필터 적용됨' : '전체 상품'}
+          {hasFilter ? '필터 적용됨' : '전체 상품'} <Text style={styles.listCount}>{fish.length}개</Text>
         </Text>
-        <Text style={styles.listCount}>{fish.length}개</Text>
+        <View style={styles.sortRow}>
+          <TouchableOpacity
+            style={[styles.sortBtn, sort === 'newest' && styles.sortBtnActive]}
+            onPress={() => setSort('newest')}
+          >
+            <Text style={[styles.sortBtnText, sort === 'newest' && styles.sortBtnTextActive]}>최신순</Text>
+          </TouchableOpacity>
+          <Text style={styles.sortDivider}>|</Text>
+          <TouchableOpacity
+            style={[styles.sortBtn, sort === 'popular' && styles.sortBtnActive]}
+            onPress={() => setSort('popular')}
+          >
+            <Text style={[styles.sortBtnText, sort === 'popular' && styles.sortBtnTextActive]}>인기순</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -468,7 +484,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10, backgroundColor: COLORS.background,
   },
   listHeaderText: { fontSize: 14, fontWeight: FONTS.semibold, color: COLORS.text },
-  listCount: { fontSize: 13, color: COLORS.textMuted },
+  listCount: { fontSize: 13, color: COLORS.textMuted, fontWeight: FONTS.regular },
+  sortRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  sortBtn: { paddingHorizontal: 6, paddingVertical: 2 },
+  sortBtnActive: {},
+  sortBtnText: { fontSize: 13, color: COLORS.textMuted },
+  sortBtnTextActive: { color: COLORS.primary, fontWeight: FONTS.semibold },
+  sortDivider: { fontSize: 11, color: COLORS.border },
   listContent: { paddingBottom: 24, backgroundColor: COLORS.surface },
   listItem: {
     flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14,
